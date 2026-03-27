@@ -1,24 +1,78 @@
+import 'dotenv/config';
+
 import { cac } from 'cac';
+import pc from 'picocolors';
 
-import { registerAskCommand } from './presentation/commands/ask.js';
-import { registerAutoCommand } from './presentation/commands/auto.js';
-import { registerChatCommand } from './presentation/commands/chat.js';
-import { registerConfigCommand } from './presentation/commands/config.js';
-import { registerOnboardCommand } from './presentation/commands/onboard.js';
-import { registerUsageCommand } from './presentation/commands/usage.js';
-import { createLogger } from './infrastructure/logger/pino.js';
+import { createLogger } from './infrastructure/logger/index.js';
+import { AclixError, ConfigError } from './shared/errors.js';
+import { askAction } from './presentation/commands/ask.js';
+import { configAction } from './presentation/commands/config.js';
+import { onboardAction } from './presentation/commands/onboard.js';
+import { spinner } from './presentation/ui/spinner.js';
 
-const cli = cac('aclix');
+const cli = cac('acli');
 const logger = createLogger();
+const abortController = new AbortController();
 
-registerOnboardCommand(cli, logger);
-registerAskCommand(cli, logger);
-registerAutoCommand(cli, logger);
-registerChatCommand(cli, logger);
-registerConfigCommand(cli, logger);
-registerUsageCommand(cli, logger);
+let isAborting = false;
+process.on('SIGINT', () => {
+  spinner.stop();
+  process.stdout.write('\x1B[?25h\n');
+
+  if (isAborting) {
+    console.error(pc.red('✖ Force fully exited.'));
+    process.exit(130);
+  }
+
+  isAborting = true;
+  console.error(pc.yellow('✖ Cancelling request... (Press Ctrl+C again to force exit)'));
+  abortController.abort();
+});
+
+cli.command('onboard', 'Initialize ACLIx configuration').action(async () => {
+  await onboardAction(abortController.signal);
+});
+
+cli.command('ask <query>', 'Ask a question').action(async (query: string) => {
+  await askAction(query, abortController.signal);
+});
+
+cli.command('config', 'Inspect and manage local config').action(() => {
+  configAction();
+});
+
+// TODO: usage command
+// TODO: version command
+// TODO: help command
+
+/**
+ * NOTE: Commented out for now, use ask command instead.
+ */
+// cli.command('[...args]', 'Auto-detect intent').action(async (args: string[]) => {
+//   await askAction(args.join(' '), abortController.signal);
+// });
 
 cli.help();
 cli.version('1.0.0');
 
-void cli.parse();
+try {
+  cli.parse(process.argv, { run: false });
+  await cli.runMatchedCommand();
+} catch (error: unknown) {
+  // 拦截 AbortSignal 触发的异常，静默处理以实现优雅退出
+  if (error instanceof Error && error.name === 'AbortError') {
+    logger.debug('Process aborted by user');
+    process.exitCode = 130;
+  } else if (error instanceof ConfigError) {
+    logger.error({ code: error.code, message: error.message }, 'Configuration error');
+    console.error(pc.yellow('Tip: run `acli onboard` to complete setup.'));
+    process.exitCode = 1;
+  } else if (error instanceof AclixError) {
+    logger.error({ code: error.code, message: error.message }, 'ACLIX error');
+    process.exitCode = 1;
+  } else {
+    logger.error({ error }, 'Unexpected error');
+    console.error(error);
+    process.exitCode = 1;
+  }
+}
