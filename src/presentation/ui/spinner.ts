@@ -1,19 +1,35 @@
 import ora, { type Ora } from 'ora';
 
-export class SpinnerManager {
-  private spinner: Ora | null = null;
+let spinnerInstance: Ora | undefined;
 
-  start(message: string): void {
-    this.spinner = ora(message).start();
-  }
+export const spinner = {
+  start(text: string): void {
+    spinnerInstance?.stop();
+    spinnerInstance = ora(text).start();
+  },
 
-  succeed(message: string): void {
-    this.spinner?.succeed(message);
-    this.spinner = null;
-  }
+  stop(): void {
+    spinnerInstance?.stop();
+    spinnerInstance = undefined;
+  },
 
-  fail(message: string): void {
-    this.spinner?.fail(message);
-    this.spinner = null;
-  }
-}
+  succeed(text: string): void {
+    if (spinnerInstance) {
+      spinnerInstance.succeed(text);
+      spinnerInstance = undefined;
+      return;
+    }
+
+    ora().succeed(text);
+  },
+
+  fail(text: string): void {
+    if (spinnerInstance) {
+      spinnerInstance.fail(text);
+      spinnerInstance = undefined;
+      return;
+    }
+
+    ora().fail(text);
+  },
+};

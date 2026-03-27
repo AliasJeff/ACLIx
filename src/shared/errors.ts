@@ -1,13 +1,27 @@
-export class SecurityError extends Error {
-  constructor(message: string) {
+export class AclixError extends Error {
+  public readonly code: string;
+
+  constructor(code: string, message: string) {
     super(message);
-    this.name = 'SecurityError';
+    this.name = new.target.name;
+    this.code = code;
   }
 }
 
-export class ToolExecutionError extends Error {
+export class ConfigError extends AclixError {
   constructor(message: string) {
-    super(message);
-    this.name = 'ToolExecutionError';
+    super('CONFIG_ERROR', message);
+  }
+}
+
+export class LLMError extends AclixError {
+  constructor(message: string) {
+    super('LLM_ERROR', message);
+  }
+}
+
+export class SecurityError extends AclixError {
+  constructor(message: string) {
+    super('SECURITY_ERROR', message);
   }
 }
