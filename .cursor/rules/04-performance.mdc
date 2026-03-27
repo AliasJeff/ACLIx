@@ -1,0 +1,10 @@
+---
+description: CLI极速冷启动、惰性加载原则 (编写 CLI 路由和命令入口时触发)
+globs: src/**/*.ts
+---
+# 🪶 极致轻量与极速冷启动 (Ultra-Lightweight & Fast Boot)
+
+- **毫秒级启动**: CLI 冷启动目标必须 < 50ms。
+- **强制惰性加载 (Lazy Loading)**: 严禁在全局入口或路由文件顶部静态 `import` 重型模块 (`ai`, `better-sqlite3`, `zod`, `openai`)。必须在具体命令函数内部使用动态 `await import(...)` 按需加载。
+- **无状态顶层**: 严禁在文件顶层执行耗时的同步 I/O 操作、计算 Hash 或顶层 `await` 数据库连接。
+- **避免过度导出**: 考虑 `tsup` 的 Tree-shaking 效果，不要建立无意义的 Barrel files (`index.ts` 导出大全)。

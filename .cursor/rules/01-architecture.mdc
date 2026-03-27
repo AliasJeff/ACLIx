@@ -1,0 +1,11 @@
+---
+description: 项目架构核心原则、TypeScript规范与第一性原则 (编写任何逻辑前必看)
+globs: src/**/*.ts
+---
+# 🏛️ 架构与第一性原则 (Clean Architecture & First Principles)
+
+- **第一性原则**: 回溯本质，最简有效。拒绝过度工程化和防御性编程。
+- **单向依赖机制**: 严格遵守 `Presentation` -> `Application` -> `Domain` -> `Infrastructure`。下层绝不允许反向依赖上层。Domain 层绝不 import 三方 SDK（如 openai, sqlite3）。
+- **纯粹的 ESM**: 必须使用 `import.meta.url`，抛弃 `__dirname` 和 `require`。
+- **原生优先**: 充分压榨 Node 23 原生能力。强制使用全局 `fetch`，优先使用 `node:fs/promises`、`node:crypto` 和原生测试 `node:test`。
+- **严格的 TypeScript**: 开启 `strict: true`，全面封杀 `any` 类型，一律使用 `unknown` + Zod / Type Guards 收窄校验。
