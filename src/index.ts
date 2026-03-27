@@ -14,6 +14,10 @@ const cli = cac('acli');
 const logger = createLogger();
 const abortController = new AbortController();
 
+process.on('exit', () => {
+  logger.flush();
+});
+
 let isAborting = false;
 process.on('SIGINT', () => {
   spinner.stop();
@@ -27,6 +31,12 @@ process.on('SIGINT', () => {
   isAborting = true;
   console.error(pc.yellow('✖ Cancelling request... (Press Ctrl+C again to force exit)'));
   abortController.abort();
+
+  setTimeout(() => {
+    logger.debug('Graceful abort timeout, forcing exit.');
+    logger.flush();
+    process.exit(130);
+  }, 2000).unref();
 });
 
 cli.command('onboard', 'Initialize ACLIx configuration').action(async () => {
@@ -59,10 +69,10 @@ try {
   cli.parse(process.argv, { run: false });
   await cli.runMatchedCommand();
 } catch (error: unknown) {
-  // 拦截 AbortSignal 触发的异常，静默处理以实现优雅退出
-  if (error instanceof Error && error.name === 'AbortError') {
-    logger.debug('Process aborted by user');
-    process.exitCode = 130;
+  if ((error as { name?: string } | null)?.name === 'AbortError') {
+    logger.debug('Process cleanly aborted by user');
+    logger.flush();
+    process.exit(130);
   } else if (error instanceof ConfigError) {
     logger.error({ code: error.code, message: error.message }, 'Configuration error');
     console.error(pc.yellow('Tip: run `acli onboard` to complete setup.'));

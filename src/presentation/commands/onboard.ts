@@ -3,14 +3,12 @@ import type { Logger } from 'pino';
 
 import { configManager } from '../../infrastructure/config/index.js';
 import type { LLMProvider, UserConfig } from '../../shared/types.js';
-import {
-  askPassword,
-  askSelect,
-  showIntro,
-  showOutro,
-} from '../ui/prompts.js';
+import { askPassword, askSelect, showIntro, showOutro } from '../ui/prompts.js';
 
-type SupportedProvider = Extract<LLMProvider, 'openai' | 'anthropic' | 'google' | 'minimax' | 'deepseek'>;
+type SupportedProvider = Extract<
+  LLMProvider,
+  'openai' | 'anthropic' | 'google' | 'minimax' | 'deepseek'
+>;
 
 export async function onboardAction(signal?: AbortSignal): Promise<void> {
   showIntro('Welcome to ACLIx onboarding');
@@ -86,14 +84,14 @@ export async function onboardAction(signal?: AbortSignal): Promise<void> {
   configManager.set('apiKey', apiKey);
   configManager.set('model', model);
 
-  showOutro('Onboarding completed. Try `acli "hello"` to test.');
+  showOutro(
+    'Onboarding completed. Try `acli ask "Explain the concept of LLM in one sentence"` to test.',
+  );
 }
 
 export function registerOnboardCommand(cli: CAC, logger: Logger): void {
-  cli
-    .command('onboard', 'Initialize local CLI profile')
-    .action(async () => {
-      await onboardAction();
-      logger.info('onboard completed');
-    });
+  cli.command('onboard', 'Initialize local CLI profile').action(async () => {
+    await onboardAction();
+    logger.info('onboard completed');
+  });
 }

@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module';
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -9,6 +10,9 @@ const isDebugEnabled = process.env.ACLI_DEBUG === '1';
 const isDevelopment = process.env.NODE_ENV !== 'production';
 const defaultLevel = isDebugEnabled ? 'debug' : 'info';
 const logDir = path.join(os.homedir(), '.aclix', 'logs');
+if (!fs.existsSync(logDir)) {
+  fs.mkdirSync(logDir, { recursive: true });
+}
 
 function buildTransport() {
   const targets: {
