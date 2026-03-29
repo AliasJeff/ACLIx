@@ -1,3 +1,5 @@
+import type { GenerateTextOnStepFinishCallback, ToolSet } from 'ai';
+
 export interface CliContext {
   cwd: string;
   args: string[];
@@ -13,4 +15,9 @@ export interface UserConfig {
   organization?: string;
   temperature?: number;
   maxTokens?: number;
+}
+
+export interface AgentCallbacks {
+  onStepFinish?: GenerateTextOnStepFinishCallback<ToolSet>;
+  onBeforeExecute?: (command: string, reasoning: string, risk: 'low' | 'high') => Promise<boolean>;
 }

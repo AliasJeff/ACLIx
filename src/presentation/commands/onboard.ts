@@ -85,7 +85,7 @@ export async function onboardAction(signal?: AbortSignal): Promise<void> {
   configManager.set('model', model);
 
   showOutro(
-    'Onboarding completed. Try `acli ask "Explain the concept of LLM in one sentence"` to test.',
+    'Onboarding completed. Try `acli chat "Create test_agent/ dir and create a txt file with content hello in it"` to test.',
   );
 }
 
