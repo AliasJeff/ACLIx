@@ -5,6 +5,7 @@ export async function runHostCommand(command: string): Promise<string> {
     shell: true,
     reject: false,
     stdin: 'ignore',
+    // FIXME: should use PTY to avoid timeout
     timeout: 10_000,
   });
 

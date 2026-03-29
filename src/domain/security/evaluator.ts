@@ -17,7 +17,16 @@ export function maxRisk(a: RiskLevel, b: RiskLevel): RiskLevel {
 export function evaluateServerRiskFloor(command: string): RiskLevel {
   const normalized = command.toLowerCase();
 
-  const highPatterns = ['rm -rf /', 'mkfs', 'dd if=', ':(){ :|:& };:', 'shutdown', 'reboot', '> /dev/'];
+  // FIXME: should use AST to evaluate the command
+  const highPatterns = [
+    'rm -rf /',
+    'mkfs',
+    'dd if=',
+    ':(){ :|:& };:',
+    'shutdown',
+    'reboot',
+    '> /dev/',
+  ];
   if (highPatterns.some((p) => normalized.includes(p))) {
     return 'high';
   }
