@@ -18,6 +18,7 @@ process.on('exit', () => {
   logger.flush();
 });
 
+// FIXME: Ctrl+C doesn't work as expected
 let isAborting = false;
 process.on('SIGINT', () => {
   spinner.stop();

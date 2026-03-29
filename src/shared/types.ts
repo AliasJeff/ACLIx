@@ -5,7 +5,13 @@ export interface CliContext {
   args: string[];
 }
 
-export type LLMProvider = 'openai' | 'anthropic' | 'google' | 'azure-openai' | 'minimax' | 'deepseek';
+export type LLMProvider =
+  | 'openai'
+  | 'anthropic'
+  | 'google'
+  | 'azure-openai'
+  | 'minimax'
+  | 'deepseek';
 
 export interface UserConfig {
   provider: LLMProvider;
@@ -24,4 +30,5 @@ export interface AgentCallbacks {
     reasoning: string,
     risk: 'low' | 'medium' | 'high',
   ) => Promise<boolean>;
+  onAskUser?: (message: string, isSecret?: boolean) => Promise<string>;
 }

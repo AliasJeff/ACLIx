@@ -4,7 +4,7 @@ import { executeChatWorkflow } from '../../application/workflows/chat.js';
 import { logger } from '../../infrastructure/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
 import { requireAuth } from '../middlewares/index.js';
-import { askDangerConfirmation } from '../ui/prompts.js';
+import { askDangerConfirmation, askPassword, askTextInput } from '../ui/prompts.js';
 import { spinner } from '../ui/spinner.js';
 
 export async function chatAction(query: string, signal?: AbortSignal): Promise<void> {
@@ -15,6 +15,7 @@ export async function chatAction(query: string, signal?: AbortSignal): Promise<v
       const { text, toolCalls } = event;
       logger.debug({ text, toolCalls }, 'Step finished');
       if (text) {
+        // FIXME: thinking content should be displayed on the top of the output
         console.info(pc.dim(`\n🧠 Thought: ${text}`));
       }
     },
@@ -22,11 +23,7 @@ export async function chatAction(query: string, signal?: AbortSignal): Promise<v
       spinner.stop();
 
       console.info(pc.cyan(`\n💡 Reasoning: `) + pc.dim(reasoning));
-      console.info(
-        pc.yellow(`🛠️  Tool [shell] `) +
-          pc.dim(`[${risk}] `) +
-          pc.bold(command),
-      );
+      console.info(pc.yellow(`🛠️  Tool [shell] `) + pc.dim(`[${risk}] `) + pc.bold(command));
 
       if (risk === 'low') {
         spinner.start('Executing command...');
@@ -47,6 +44,17 @@ export async function chatAction(query: string, signal?: AbortSignal): Promise<v
       }
 
       return confirmed;
+    },
+    onAskUser: async (message: string, isSecret?: boolean) => {
+      spinner.stop();
+
+      console.info(pc.cyan('\n🙋 Agent needs your input:'));
+      const answer = isSecret
+        ? await askPassword(message, '*', signal)
+        : await askTextInput(message, signal);
+
+      spinner.start('Agent is resuming...');
+      return answer;
     },
   };
 
