@@ -5,6 +5,7 @@ import path from 'node:path';
 
 import pino, { type Logger } from 'pino';
 
+// FIXME: only print log to console in development mode
 const require = createRequire(import.meta.url);
 const isDebugEnabled = process.env.ACLI_DEBUG === '1';
 const isDevelopment = process.env.NODE_ENV !== 'production';
