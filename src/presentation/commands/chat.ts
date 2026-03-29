@@ -22,12 +22,21 @@ export async function chatAction(query: string, signal?: AbortSignal): Promise<v
       spinner.stop();
 
       console.info(pc.cyan(`\n💡 Reasoning: `) + pc.dim(reasoning));
-      console.info(pc.yellow(`🛠️  Tool [shell]: `) + pc.bold(command));
+      console.info(
+        pc.yellow(`🛠️  Tool [shell] `) +
+          pc.dim(`[${risk}] `) +
+          pc.bold(command),
+      );
+
+      if (risk === 'low') {
+        spinner.start('Executing command...');
+        return true;
+      }
 
       const message =
         risk === 'high'
           ? '⚠️ High-risk command detected. Execute?'
-          : 'Execute this command?';
+          : 'This command may change system or project state. Execute?';
 
       const confirmed = await askDangerConfirmation(message, signal);
 

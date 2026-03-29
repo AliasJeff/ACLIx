@@ -19,5 +19,9 @@ export interface UserConfig {
 
 export interface AgentCallbacks {
   onStepFinish?: GenerateTextOnStepFinishCallback<ToolSet>;
-  onBeforeExecute?: (command: string, reasoning: string, risk: 'low' | 'high') => Promise<boolean>;
+  onBeforeExecute?: (
+    command: string,
+    reasoning: string,
+    risk: 'low' | 'medium' | 'high',
+  ) => Promise<boolean>;
 }
