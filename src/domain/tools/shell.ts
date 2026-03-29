@@ -1,0 +1,40 @@
+import { tool } from 'ai';
+import { z } from 'zod';
+
+import { mergeAgentAndServerRisk, type RiskLevel } from '../security/evaluator.js';
+import type { AgentCallbacks } from '../../shared/types.js';
+
+const riskEnum = z.enum(['low', 'medium', 'high']);
+
+const shellInputSchema = z.object({
+  command: z.string().describe('The precise shell command to execute'),
+  reasoning: z.string().describe('Step-by-step reasoning explaining why this command is needed'),
+  risk: riskEnum.describe(
+    'Your assessment of this invocation: low = read-only or non-mutating inspection (ls, cat, grep, head, tail, pwd, stat, du without writes, git status/log/diff, etc.); medium = writes installs or network that change state but are not catastrophically destructive; high = deletion of important data, privilege escalation, disk or system-level changes, or piping to dangerous targets.',
+  ),
+});
+
+export function createShellTool(
+  executeCommand: (cmd: string) => Promise<string>,
+  callbacks: AgentCallbacks,
+) {
+  return tool({
+    description:
+      'Execute shell commands on the host operating system. For every call you must set risk from your own judgment (low / medium / high). Read-only and listing commands are low risk and should use risk=low. Destructive or privileged operations must use medium or high.',
+    inputSchema: shellInputSchema,
+    execute: async ({ command, reasoning, risk: agentRisk }) => {
+      const risk: RiskLevel = mergeAgentAndServerRisk(agentRisk, command);
+      const isApproved = callbacks.onBeforeExecute
+        ? await callbacks.onBeforeExecute(command, reasoning, risk)
+        : false;
+      if (!isApproved) {
+        return 'Execution rejected by user. Please suggest an alternative or stop.';
+      }
+      try {
+        return await executeCommand(command);
+      } catch (error: unknown) {
+        return String(error instanceof Error ? error.message : error);
+      }
+    },
+  });
+}

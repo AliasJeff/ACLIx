@@ -5,7 +5,7 @@ import pc from 'picocolors';
 
 import { createLogger } from './infrastructure/logger/index.js';
 import { AclixError, ConfigError } from './shared/errors.js';
-import { askAction } from './presentation/commands/ask.js';
+import { chatAction } from './presentation/commands/chat.js';
 import { configAction } from './presentation/commands/config.js';
 import { onboardAction } from './presentation/commands/onboard.js';
 import { spinner } from './presentation/ui/spinner.js';
@@ -18,6 +18,7 @@ process.on('exit', () => {
   logger.flush();
 });
 
+// FIXME: Ctrl+C doesn't work as expected
 let isAborting = false;
 process.on('SIGINT', () => {
   spinner.stop();
@@ -43,9 +44,11 @@ cli.command('onboard', 'Initialize ACLIx configuration').action(async () => {
   await onboardAction(abortController.signal);
 });
 
-cli.command('ask <query>', 'Ask a question').action(async (query: string) => {
-  await askAction(query, abortController.signal);
-});
+cli
+  .command('chat <query>', 'Chat with AI to analyze intent and execute commands')
+  .action(async (query: string) => {
+    await chatAction(query, abortController.signal);
+  });
 
 cli.command('config', 'Inspect and manage local config').action(() => {
   configAction();

@@ -3,6 +3,7 @@ import Conf from 'conf';
 import { ConfigError } from '../../shared/errors.js';
 import type { UserConfig } from '../../shared/types.js';
 
+// FIXME: should encrypt the config file
 class ConfigManager {
   private static instance: ConfigManager | undefined;
   private readonly store: Conf;
