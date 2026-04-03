@@ -19,6 +19,7 @@ export async function chatAction(query: string, signal?: AbortSignal): Promise<v
       spinner.stop();
 
       console.info(pc.cyan(`\n💡 Reasoning: `) + pc.dim(reasoning));
+      // TODO: show tool name
       console.info(pc.yellow(`🛠️  Tool [shell] `) + pc.dim(`[${risk}] `) + pc.bold(command));
 
       if (risk === 'low') {
