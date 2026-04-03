@@ -85,7 +85,11 @@ export async function replAction(): Promise<void> {
     },
   };
 
-  console.info(pc.green('欢迎使用 ACLIx REPL。输入问题开始对话；使用 /exit 退出，/clear 清屏并清空上下文。'));
+  console.info(
+    pc.green(
+      'Welcome to ACLIx REPL. Input your question to start the conversation; use /exit to exit, /clear to clear the screen and clear the context.',
+    ),
+  );
 
   const rl = createInterface({
     input: process.stdin,
@@ -166,4 +170,3 @@ export async function replAction(): Promise<void> {
     rl.close();
   }
 }
-
