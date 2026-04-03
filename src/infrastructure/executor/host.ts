@@ -20,12 +20,13 @@ function formatOutput(stdout: string, stderr: string): string {
   return stdout || stderr;
 }
 
-export async function runHostCommand(command: string): Promise<string> {
+export async function runHostCommand(command: string, signal?: AbortSignal): Promise<string> {
   const result = await execaCommand(command, {
     shell: true,
     reject: false,
     stdin: 'ignore',
     timeout: COMMAND_TIMEOUT_MS,
+    cancelSignal: signal,
   });
 
   if (result.timedOut || result.isCanceled) {

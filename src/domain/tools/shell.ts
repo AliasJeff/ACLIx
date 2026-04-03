@@ -15,14 +15,14 @@ const shellInputSchema = z.object({
 });
 
 export function createShellTool(
-  executeCommand: (cmd: string) => Promise<string>,
+  executeCommand: (cmd: string, signal?: AbortSignal) => Promise<string>,
   callbacks: AgentCallbacks,
 ) {
   return tool({
     description:
       'Execute shell commands on the host operating system. For every call you must set risk from your own judgment (low / medium / high). Read-only and listing commands are low risk and should use risk=low. Destructive or privileged operations must use medium or high.',
     inputSchema: shellInputSchema,
-    execute: async ({ command, reasoning, risk: agentRisk }) => {
+    execute: async ({ command, reasoning, risk: agentRisk }, { abortSignal }) => {
       const risk: RiskLevel = mergeAgentAndServerRisk(agentRisk, command);
       const isApproved = callbacks.onBeforeExecute
         ? await callbacks.onBeforeExecute('shell', command, reasoning, risk)
@@ -31,7 +31,7 @@ export function createShellTool(
         return 'Execution rejected by user. Please suggest an alternative or stop.';
       }
       try {
-        return await executeCommand(command);
+        return await executeCommand(command, abortSignal);
       } catch (error: unknown) {
         return String(error instanceof Error ? error.message : error);
       }
