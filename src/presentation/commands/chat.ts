@@ -12,23 +12,24 @@ export async function chatAction(query: string, signal?: AbortSignal): Promise<v
 
   const callbacks: AgentCallbacks = {
     onStepFinish: (event) => {
-      const { text, toolCalls } = event;
-      logger.debug({ text, toolCalls }, 'Step finished');
-      if (text) {
-        // FIXME: thinking content should be displayed on the top of the output
-        console.info(pc.dim(`\n🧠 Thought: ${text}`));
-      }
+      const { reasoningText, toolCalls } = event;
+      logger.debug({ reasoningText, toolCalls }, 'Step finished');
     },
-    onBeforeExecute: async (command, reasoning, risk) => {
+    onBeforeExecute: async (
+      toolName: string,
+      command: string,
+      reasoning: string,
+      risk: 'low' | 'medium' | 'high',
+    ) => {
+      if (risk === 'low') {
+        console.info(pc.dim(`🛠️ Tool [${toolName}] `) + pc.dim(command));
+        return true;
+      }
+
       spinner.stop();
 
       console.info(pc.cyan(`\n💡 Reasoning: `) + pc.dim(reasoning));
-      console.info(pc.yellow(`🛠️  Tool [shell] `) + pc.dim(`[${risk}] `) + pc.bold(command));
-
-      if (risk === 'low') {
-        spinner.start('Executing command...');
-        return true;
-      }
+      console.info(pc.yellow(`🛠️ Tool [${toolName}] `) + pc.dim(`[${risk}] `) + pc.bold(command));
 
       const message =
         risk === 'high'
@@ -58,8 +59,10 @@ export async function chatAction(query: string, signal?: AbortSignal): Promise<v
     },
   };
 
+  // TODO: display random thinking content for better user experience
   spinner.start('Thinking...');
   try {
+    // TODO: show show totalUsage
     const result = await executeChatWorkflow(query, callbacks, signal);
     console.info(pc.green(`\n💬 ${result.message}\n`));
   } catch (error) {

@@ -26,6 +26,7 @@ export interface UserConfig {
 export interface AgentCallbacks {
   onStepFinish?: GenerateTextOnStepFinishCallback<ToolSet>;
   onBeforeExecute?: (
+    toolName: string,
     command: string,
     reasoning: string,
     risk: 'low' | 'medium' | 'high',
