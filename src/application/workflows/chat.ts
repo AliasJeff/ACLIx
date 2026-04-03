@@ -27,6 +27,7 @@ export async function executeChatWorkflow(
     os: ctx.platform,
     shell: ctx.shell,
   });
+  // TODO: enhance system prompt
   let systemPrompt = `${basePrompt}
 
 You are an autonomous AI CLI assistant. Use the shell tool to run commands and reach the user's goal step-by-step. If a command fails, read the error and adjust your plan. Do not tell the user to run commands manually; execute them via the tool. When the goal is done, reply with a clear natural-language summary.
