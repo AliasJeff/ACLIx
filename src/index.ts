@@ -32,13 +32,18 @@ process.on('SIGINT', () => {
 
   isAborting = true;
   console.error(pc.yellow('✖ Cancelling request... (Press Ctrl+C again to force exit)'));
+  console.error(
+    pc.dim(
+      'We are shutting down gracefully. Some operations may take a moment to stop.\nIf it does not exit shortly, press Ctrl+C again to force quit.',
+    ),
+  );
   abortController.abort();
 
   setTimeout(() => {
     logger.debug('Graceful abort timeout, forcing exit.');
     logger.flush();
     process.exit(130);
-  }, 2000).unref();
+  }, 2000);
 });
 
 cli.command('onboard', 'Initialize ACLIx configuration').action(async () => {
@@ -73,8 +78,14 @@ try {
   cli.parse(process.argv, { run: false });
   await cli.runMatchedCommand();
 } catch (error: unknown) {
-  if ((error as { name?: string } | null)?.name === 'AbortError') {
+  const err = error as any;
+  if (
+    err?.name === 'AbortError' ||
+    err?.cause?.name === 'AbortError' ||
+    (err instanceof Error && err.message.toLowerCase().includes('abort'))
+  ) {
     logger.debug('Process cleanly aborted by user');
+    console.error(pc.dim('Cancelled by user. Exiting...'));
     logger.flush();
     process.exit(130);
   } else if (error instanceof ConfigError) {
