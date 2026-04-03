@@ -16,6 +16,15 @@ export function maxRisk(a: RiskLevel, b: RiskLevel): RiskLevel {
  */
 export function evaluateServerRiskFloor(command: string): RiskLevel {
   const normalized = command.toLowerCase();
+  const hasDangerousEditOrRead =
+    /\bsed\s+-i\b|\bvi\s|\bvim\s|\bnano\s|\bcat\s|\bhead\s|\btail\s|\bfind\s|\bgrep\s/.test(
+      normalized,
+    );
+  const hasDangerousRedirect = /(>>?|[0-9]>)\s*(?!\/dev\/null\b)/.test(normalized);
+
+  if (hasDangerousEditOrRead || hasDangerousRedirect) {
+    return 'high';
+  }
 
   // FIXME: should use AST to evaluate the command
   const highPatterns = [

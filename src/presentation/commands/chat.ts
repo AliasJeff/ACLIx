@@ -12,12 +12,8 @@ export async function chatAction(query: string, signal?: AbortSignal): Promise<v
 
   const callbacks: AgentCallbacks = {
     onStepFinish: (event) => {
-      const { text, toolCalls } = event;
-      logger.debug({ text, toolCalls }, 'Step finished');
-      if (text) {
-        // FIXME: thinking content should be displayed on the top of the output
-        console.info(pc.dim(`\n🧠 Thought: ${text}`));
-      }
+      const { reasoningText, toolCalls } = event;
+      logger.debug({ reasoningText, toolCalls }, 'Step finished');
     },
     onBeforeExecute: async (command, reasoning, risk) => {
       spinner.stop();
@@ -58,8 +54,10 @@ export async function chatAction(query: string, signal?: AbortSignal): Promise<v
     },
   };
 
+  // TODO: display random thinking content for better user experience
   spinner.start('Thinking...');
   try {
+    // TODO: show show totalUsage
     const result = await executeChatWorkflow(query, callbacks, signal);
     console.info(pc.green(`\n💬 ${result.message}\n`));
   } catch (error) {
