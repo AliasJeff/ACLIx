@@ -12,48 +12,56 @@ import { spinner } from './presentation/ui/spinner.js';
 
 const cli = cac('acli');
 const logger = createLogger();
-const abortController = new AbortController();
+
+let abortController = new AbortController();
+let isGenerating = false;
+let lastSigintAt = 0;
+
+export function setGenerating(val: boolean): void {
+  isGenerating = val;
+}
+
+export function renewAbortController(): void {
+  abortController = new AbortController();
+}
+
+export function getAbortSignal(): AbortSignal {
+  return abortController.signal;
+}
 
 process.on('exit', () => {
   logger.flush();
 });
 
 // TODO: use SSE to stream the response
-// FIXME: Ctrl+C doesn't work as expected
-let isAborting = false;
 process.on('SIGINT', () => {
   spinner.stop();
   process.stdout.write('\x1B[?25h\n');
 
-  if (isAborting) {
-    console.error(pc.red('✖ Force fully exited.'));
+  if (isGenerating) {
+    abortController.abort();
+    console.error(pc.yellow('Generation cancelled.'));
+    renewAbortController();
+    return;
+  }
+
+  const now = Date.now();
+  if (now - lastSigintAt < 2000 && lastSigintAt > 0) {
     process.exit(130);
   }
 
-  isAborting = true;
-  console.error(pc.yellow('✖ Cancelling request... (Press Ctrl+C again to force exit)'));
-  console.error(
-    pc.dim(
-      'We are shutting down gracefully. Some operations may take a moment to stop.\nIf it does not exit shortly, press Ctrl+C again to force quit.',
-    ),
-  );
-  abortController.abort();
-
-  setTimeout(() => {
-    logger.debug('Graceful abort timeout, forcing exit.');
-    logger.flush();
-    process.exit(130);
-  }, 2000);
+  lastSigintAt = now;
+  console.error(pc.dim('再按一次 Ctrl+C 退出'));
 });
 
 cli.command('onboard', 'Initialize ACLIx configuration').action(async () => {
-  await onboardAction(abortController.signal);
+  await onboardAction(getAbortSignal());
 });
 
 cli
   .command('chat <query>', 'Chat with AI to analyze intent and execute commands')
   .action(async (query: string) => {
-    await chatAction(query, abortController.signal);
+    await chatAction(query, getAbortSignal());
   });
 
 cli.command('config', 'Inspect and manage local config').action(() => {
@@ -74,16 +82,29 @@ cli.command('config', 'Inspect and manage local config').action(() => {
 cli.help();
 cli.version('1.0.0');
 
+function isAbortLike(error: unknown): boolean {
+  if (error instanceof Error && error.name === 'AbortError') {
+    return true;
+  }
+  if (error instanceof Error && error.cause instanceof Error && error.cause.name === 'AbortError') {
+    return true;
+  }
+  if (error instanceof Error && error.message.toLowerCase().includes('abort')) {
+    return true;
+  }
+  return false;
+}
+
 try {
   cli.parse(process.argv, { run: false });
-  await cli.runMatchedCommand();
+  if (!cli.matchedCommandName && cli.args.length === 0) {
+    const { replAction } = await import('./presentation/commands/repl.js');
+    await replAction();
+  } else {
+    await cli.runMatchedCommand();
+  }
 } catch (error: unknown) {
-  const err = error as any;
-  if (
-    err?.name === 'AbortError' ||
-    err?.cause?.name === 'AbortError' ||
-    (err instanceof Error && err.message.toLowerCase().includes('abort'))
-  ) {
+  if (isAbortLike(error)) {
     logger.debug('Process cleanly aborted by user');
     console.error(pc.dim('Cancelled by user. Exiting...'));
     logger.flush();

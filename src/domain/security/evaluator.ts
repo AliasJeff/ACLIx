@@ -28,11 +28,17 @@ export function evaluateServerRiskFloor(command: string): RiskLevel {
     return 'high';
   }
 
-  const isOpToken = (t: unknown): t is { op: string } =>
-    typeof t === 'object' && t !== null && 'op' in t && typeof (t as any).op === 'string';
+  const isOpToken = (t: unknown): t is { op: string } => {
+    if (typeof t !== 'object' || t === null) return false;
+    const obj = t as Record<string, unknown>;
+    return typeof obj.op === 'string';
+  };
 
-  const isGlobToken = (t: unknown): t is { pattern: string } =>
-    typeof t === 'object' && t !== null && 'pattern' in t && typeof (t as any).pattern === 'string';
+  const isGlobToken = (t: unknown): t is { pattern: string } => {
+    if (typeof t !== 'object' || t === null) return false;
+    const obj = t as Record<string, unknown>;
+    return typeof obj.pattern === 'string';
+  };
 
   const CONTROL_OPS = new Set([';', '|', '&&', '||', '&', '(', ')']);
 

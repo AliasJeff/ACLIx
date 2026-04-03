@@ -1,4 +1,4 @@
-import type { Tool } from 'ai';
+import type { ModelMessage as CoreMessage, Tool } from 'ai';
 
 import { buildSystemPrompt } from '../agent/prompt.js';
 import { createAskUserTool } from '../../domain/tools/ask.js';
@@ -17,10 +17,10 @@ import { LLMProvider } from '../../infrastructure/llm/provider.js';
 import type { AgentCallbacks } from '../../shared/types.js';
 
 export async function executeChatWorkflow(
-  query: string,
+  messages: CoreMessage[],
   callbacks: AgentCallbacks,
   signal?: AbortSignal,
-): Promise<{ message: string }> {
+): Promise<{ message: string; newMessages: CoreMessage[] }> {
   const ctx: RuntimeContext = createRuntimeContext();
   const basePrompt = buildSystemPrompt({
     cwd: ctx.cwd,
@@ -68,7 +68,7 @@ When using web_search:
 - If multiple sources conflict, mention the discrepancy`;
 
   logger.debug({ systemPrompt }, 'System prompt');
-  logger.debug({ query }, 'Query');
+  logger.debug({ messages }, 'Messages');
   logger.debug({ ctx }, 'Context');
 
   const tools: Record<string, Tool> = {
@@ -82,13 +82,13 @@ When using web_search:
     web_search: createWebSearchTool(callbacks),
   };
   const provider = new LLMProvider();
-  const text = await provider.executeAgent(
-    query,
+  const result = await provider.executeAgent(
+    messages,
     systemPrompt,
     tools,
     signal,
     callbacks.onStepFinish,
   );
 
-  return { message: text };
+  return { message: result.text, newMessages: result.newMessages };
 }

@@ -3,6 +3,7 @@ import pc from 'picocolors';
 import { executeChatWorkflow } from '../../application/workflows/chat.js';
 import { logger } from '../../infrastructure/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
+import type { ModelMessage as CoreMessage } from 'ai';
 import { requireAuth } from '../middlewares/index.js';
 import { askDangerConfirmation, askPassword, askTextInput } from '../ui/prompts.js';
 import { spinner } from '../ui/spinner.js';
@@ -63,7 +64,8 @@ export async function chatAction(query: string, signal?: AbortSignal): Promise<v
   spinner.start('Thinking...');
   try {
     // TODO: show show totalUsage
-    const result = await executeChatWorkflow(query, callbacks, signal);
+    const messages: CoreMessage[] = [{ role: 'user', content: query }];
+    const result = await executeChatWorkflow(messages, callbacks, signal);
     console.info(pc.green(`\n💬 ${result.message}\n`));
   } catch (error) {
     logger.error({ error }, 'Chat workflow failed');

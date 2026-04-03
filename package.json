@@ -29,6 +29,7 @@
     "@ai-sdk/openai": "^3.0.48",
     "@clack/prompts": "^1.1.0",
     "ai": "^6.0.140",
+    "better-sqlite3": "^12.8.0",
     "cac": "^7.0.0",
     "clipboardy": "^5.3.1",
     "conf": "^15.1.0",
