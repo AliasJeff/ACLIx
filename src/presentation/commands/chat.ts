@@ -15,17 +15,21 @@ export async function chatAction(query: string, signal?: AbortSignal): Promise<v
       const { reasoningText, toolCalls } = event;
       logger.debug({ reasoningText, toolCalls }, 'Step finished');
     },
-    onBeforeExecute: async (command, reasoning, risk) => {
+    onBeforeExecute: async (
+      toolName: string,
+      command: string,
+      reasoning: string,
+      risk: 'low' | 'medium' | 'high',
+    ) => {
+      if (risk === 'low') {
+        console.info(pc.dim(`🛠️ Tool [${toolName}] `) + pc.dim(command));
+        return true;
+      }
+
       spinner.stop();
 
       console.info(pc.cyan(`\n💡 Reasoning: `) + pc.dim(reasoning));
-      // TODO: show tool name
-      console.info(pc.yellow(`🛠️  Tool [shell] `) + pc.dim(`[${risk}] `) + pc.bold(command));
-
-      if (risk === 'low') {
-        spinner.start('Executing command...');
-        return true;
-      }
+      console.info(pc.yellow(`🛠️ Tool [${toolName}] `) + pc.dim(`[${risk}] `) + pc.bold(command));
 
       const message =
         risk === 'high'

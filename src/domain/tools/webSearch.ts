@@ -27,7 +27,7 @@ export function createWebSearchTool(callbacks: AgentCallbacks) {
       const reasoning = 'Fetch recent information from web sources.';
       const risk = 'low' as const;
       const isApproved = callbacks.onBeforeExecute
-        ? await callbacks.onBeforeExecute(command, reasoning, risk)
+        ? await callbacks.onBeforeExecute('web_search', command, reasoning, risk)
         : false;
 
       if (!isApproved) {

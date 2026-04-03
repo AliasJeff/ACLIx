@@ -25,7 +25,7 @@ export function createShellTool(
     execute: async ({ command, reasoning, risk: agentRisk }) => {
       const risk: RiskLevel = mergeAgentAndServerRisk(agentRisk, command);
       const isApproved = callbacks.onBeforeExecute
-        ? await callbacks.onBeforeExecute(command, reasoning, risk)
+        ? await callbacks.onBeforeExecute('shell', command, reasoning, risk)
         : false;
       if (!isApproved) {
         return 'Execution rejected by user. Please suggest an alternative or stop.';

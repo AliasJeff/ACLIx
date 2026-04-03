@@ -73,11 +73,11 @@ When using web_search:
   const tools: Record<string, Tool> = {
     shell: createShellTool(runHostCommand, callbacks),
     ask_user: createAskUserTool(callbacks),
-    file_read: createFileReadTool(),
+    file_read: createFileReadTool(callbacks),
     file_edit: createFileEditTool(callbacks),
     file_write: createFileWriteTool(callbacks),
-    glob: createGlobTool(ctx.cwd),
-    grep: createGrepTool(ctx.cwd),
+    glob: createGlobTool(ctx.cwd, callbacks),
+    grep: createGrepTool(ctx.cwd, callbacks),
     web_search: createWebSearchTool(callbacks),
   };
   const provider = new LLMProvider();

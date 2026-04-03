@@ -21,7 +21,7 @@ export function createFileWriteTool(callbacks: AgentCallbacks) {
       const reasoning = 'Write file content to disk (create or overwrite).';
       const risk = 'medium' as const;
       const isApproved = callbacks.onBeforeExecute
-        ? await callbacks.onBeforeExecute(command, reasoning, risk)
+        ? await callbacks.onBeforeExecute('file_write', command, reasoning, risk)
         : false;
 
       if (!isApproved) {

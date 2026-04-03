@@ -4,6 +4,8 @@ import { execa } from 'execa';
 import { tool } from 'ai';
 import { z } from 'zod';
 
+import type { AgentCallbacks } from '../../shared/types.js';
+
 const grepInputSchema = z.object({
   pattern: z.string().min(1).describe('Regex pattern for searching file content'),
   path: z.string().optional().describe('Base directory for search, defaults to current working directory'),
@@ -23,12 +25,21 @@ function truncateOutput(output: string): string {
   return limited.join('\n');
 }
 
-export function createGrepTool(defaultCwd: string) {
+export function createGrepTool(defaultCwd: string, callbacks: AgentCallbacks) {
   return tool({
     description:
       'Search text inside files safely with ignored heavy directories and bounded output.',
     inputSchema: grepInputSchema,
     execute: async ({ pattern, path }) => {
+      const command = `grep ${pattern}`;
+      const reasoning = 'Search text content in files.';
+      const isApproved = callbacks.onBeforeExecute
+        ? await callbacks.onBeforeExecute('grep', command, reasoning, 'low')
+        : true;
+      if (!isApproved) {
+        return 'Execution rejected.';
+      }
+
       const basePath = path ? resolve(defaultCwd, path) : defaultCwd;
       try {
         const rgResult = await execa(

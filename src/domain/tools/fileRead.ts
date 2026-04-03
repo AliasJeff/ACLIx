@@ -3,6 +3,8 @@ import { readFile } from 'node:fs/promises';
 import { tool } from 'ai';
 import { z } from 'zod';
 
+import type { AgentCallbacks } from '../../shared/types.js';
+
 const fileReadInputSchema = z.object({
   filePath: z.string().describe('Absolute or relative file path to read'),
   offset: z.number().int().min(1).optional().default(1).describe('1-based start line number'),
@@ -16,12 +18,21 @@ const fileReadInputSchema = z.object({
     .describe('Maximum number of lines to read'),
 });
 
-export function createFileReadTool() {
+export function createFileReadTool(callbacks: AgentCallbacks) {
   return tool({
     description:
       'Read file content safely with line numbers. Use offset and limit for large files. Never use shell cat/head/tail/less for file reading.',
     inputSchema: fileReadInputSchema,
     execute: async ({ filePath, offset, limit }) => {
+      const command = `file_read ${filePath}`;
+      const reasoning = 'Read file content.';
+      const isApproved = callbacks.onBeforeExecute
+        ? await callbacks.onBeforeExecute('file_read', command, reasoning, 'low')
+        : true;
+      if (!isApproved) {
+        return 'Execution rejected.';
+      }
+
       try {
         const content = await readFile(filePath, 'utf8');
         const lines = content.split(/\r?\n/);

@@ -41,7 +41,7 @@ export function createFileEditTool(callbacks: AgentCallbacks) {
       const reasoning = 'Edit existing file by exact oldString replacement.';
       const risk = 'medium' as const;
       const isApproved = callbacks.onBeforeExecute
-        ? await callbacks.onBeforeExecute(command, reasoning, risk)
+        ? await callbacks.onBeforeExecute('file_edit', command, reasoning, risk)
         : false;
 
       if (!isApproved) {
