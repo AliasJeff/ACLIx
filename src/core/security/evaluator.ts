@@ -1,4 +1,4 @@
-import { parseCommandAst } from '../../infrastructure/parser/ast.js';
+import { parseCommandAst } from '../../services/parser/ast.js';
 
 export type RiskLevel = 'low' | 'medium' | 'high';
 

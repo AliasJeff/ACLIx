@@ -3,12 +3,13 @@ import 'dotenv/config';
 import { cac } from 'cac';
 import pc from 'picocolors';
 
-import { createLogger } from './infrastructure/logger/index.js';
+import { initAbortSignalProvider } from './cli/abort-signal.js';
+import { chatAction } from './cli/commands/chat.js';
+import { createLogger } from './services/logger/index.js';
 import { AclixError, ConfigError } from './shared/errors.js';
-import { chatAction } from './presentation/commands/chat.js';
-import { configAction } from './presentation/commands/config.js';
-import { onboardAction } from './presentation/commands/onboard.js';
-import { spinner } from './presentation/ui/spinner.js';
+import { configAction } from './cli/commands/config.js';
+import { onboardAction } from './cli/commands/onboard.js';
+import { spinner } from './ui/spinner.js';
 
 const cli = cac('acli');
 const logger = createLogger();
@@ -28,6 +29,8 @@ export function renewAbortController(): void {
 export function getAbortSignal(): AbortSignal {
   return abortController.signal;
 }
+
+initAbortSignalProvider(getAbortSignal);
 
 process.on('exit', () => {
   logger.flush();
@@ -95,30 +98,35 @@ function isAbortLike(error: unknown): boolean {
   return false;
 }
 
-try {
-  cli.parse(process.argv, { run: false });
-  if (!cli.matchedCommandName && cli.args.length === 0) {
-    const { replAction } = await import('./presentation/commands/repl.js');
-    await replAction();
-  } else {
-    await cli.runMatchedCommand();
-  }
-} catch (error: unknown) {
-  if (isAbortLike(error)) {
-    logger.debug('Process cleanly aborted by user');
-    console.error(pc.dim('Cancelled by user. Exiting...'));
-    logger.flush();
-    process.exit(130);
-  } else if (error instanceof ConfigError) {
-    logger.error({ code: error.code, message: error.message }, 'Configuration error');
-    console.error(pc.yellow('Tip: run `acli onboard` to complete setup.'));
-    process.exitCode = 1;
-  } else if (error instanceof AclixError) {
-    logger.error({ code: error.code, message: error.message }, 'ACLIX error');
-    process.exitCode = 1;
-  } else {
-    logger.error({ error }, 'Unexpected error');
-    console.error(error);
-    process.exitCode = 1;
+async function bootstrap() {
+  try {
+    cli.parse(process.argv, { run: false });
+    if (!cli.matchedCommandName && cli.args.length === 0) {
+      const { replAction } = await import('./cli/commands/repl.js');
+      await replAction();
+    } else {
+      await cli.runMatchedCommand();
+    }
+  } catch (error: unknown) {
+    if (isAbortLike(error)) {
+      // FIXME: should first cancel the agent task, then press control+c again to exit
+      logger.debug('Process cleanly aborted by user');
+      console.error(pc.dim('Cancelled by user. Exiting...'));
+      logger.flush();
+      process.exit(130);
+    } else if (error instanceof ConfigError) {
+      logger.error({ code: error.code, message: error.message }, 'Configuration error');
+      console.error(pc.yellow('Tip: run `acli onboard` to complete setup.'));
+      process.exitCode = 1;
+    } else if (error instanceof AclixError) {
+      logger.error({ code: error.code, message: error.message }, 'ACLIX error');
+      process.exitCode = 1;
+    } else {
+      logger.error({ error }, 'Unexpected error');
+      console.error(error);
+      process.exitCode = 1;
+    }
   }
 }
+
+void bootstrap();

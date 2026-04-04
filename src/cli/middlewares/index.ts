@@ -1,4 +1,4 @@
-import { configManager } from '../../infrastructure/config/index.js';
+import { configManager } from '../../services/config/index.js';
 import { ConfigError } from '../../shared/errors.js';
 
 export function requireAuth(): void {
