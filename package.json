@@ -1,11 +1,18 @@
 {
-  "name": "aclix",
-  "version": "1.0.0",
+  "name": "@AliasJeff/acli",
+  "version": "0.1.1",
   "engines": {
     "node": ">=23.0.0"
   },
   "bin": {
     "acli": "./bin/acli.js"
+  },
+  "files": [
+    "dist",
+    "bin"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
