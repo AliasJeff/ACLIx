@@ -5,7 +5,7 @@ import path from 'node:path';
 import pc from 'picocolors';
 import type { Logger } from 'pino';
 
-import { configManager } from '../../infrastructure/config/index.js';
+import { configManager } from '../../services/config/index.js';
 
 function maskApiKey(value: string): string {
   if (value.length <= 8) {

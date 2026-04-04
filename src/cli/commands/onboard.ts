@@ -1,9 +1,9 @@
 import type { CAC } from 'cac';
 import type { Logger } from 'pino';
 
-import { configManager } from '../../infrastructure/config/index.js';
+import { configManager } from '../../services/config/index.js';
 import type { LLMProvider, UserConfig } from '../../shared/types.js';
-import { askPassword, askSelect, showIntro, showOutro } from '../ui/prompts.js';
+import { askPassword, askSelect, showIntro, showOutro } from '../../ui/prompts.js';
 
 type SupportedProvider = Extract<
   LLMProvider,

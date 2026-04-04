@@ -1,7 +1,8 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
-import { generateObject, generateText, stepCountIs, streamText } from 'ai';
+import { generateObject, stepCountIs, streamText } from 'ai';
+import type { ModelMessage as CoreMessage } from 'ai';
 import type { LanguageModel, Tool as CoreTool } from 'ai';
 import type { ZodType } from 'zod';
 
@@ -70,25 +71,25 @@ export class LLMProvider {
     return result.textStream;
   }
 
-  async executeAgent(
-    prompt: string,
+  executeAgent(
+    messages: CoreMessage[],
     systemPrompt: string,
     tools: Record<string, CoreTool>,
     signal?: AbortSignal,
-    onStepFinish?: Parameters<typeof generateText>[0]['onStepFinish'],
-  ): Promise<string> {
+    onStepFinish?: Parameters<typeof streamText>[0]['onStepFinish'],
+  ): ReturnType<typeof streamText> {
     configManager.hasAuth();
-    const result = await generateText({
+    const result = streamText({
       model: this.getModel(),
       system: systemPrompt,
-      prompt,
+      messages,
       tools,
       stopWhen: stepCountIs(DEFAULT_MAX_STEPS),
       abortSignal: signal,
       onStepFinish,
     });
-    logger.debug({ result }, 'executeAgent result');
-    return result.text;
+    logger.debug({ result }, 'executeAgent streamText result');
+    return result;
   }
 
   async generateStructured<T>(

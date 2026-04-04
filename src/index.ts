@@ -3,57 +3,68 @@ import 'dotenv/config';
 import { cac } from 'cac';
 import pc from 'picocolors';
 
-import { createLogger } from './infrastructure/logger/index.js';
+import { initAbortSignalProvider } from './cli/abort-signal.js';
+import { chatAction } from './cli/commands/chat.js';
+import { createLogger } from './services/logger/index.js';
 import { AclixError, ConfigError } from './shared/errors.js';
-import { chatAction } from './presentation/commands/chat.js';
-import { configAction } from './presentation/commands/config.js';
-import { onboardAction } from './presentation/commands/onboard.js';
-import { spinner } from './presentation/ui/spinner.js';
+import { configAction } from './cli/commands/config.js';
+import { onboardAction } from './cli/commands/onboard.js';
+import { spinner } from './ui/spinner.js';
 
 const cli = cac('acli');
 const logger = createLogger();
-const abortController = new AbortController();
+
+let abortController = new AbortController();
+let isGenerating = false;
+let lastSigintAt = 0;
+
+export function setGenerating(val: boolean): void {
+  isGenerating = val;
+}
+
+export function renewAbortController(): void {
+  abortController = new AbortController();
+}
+
+export function getAbortSignal(): AbortSignal {
+  return abortController.signal;
+}
+
+initAbortSignalProvider(getAbortSignal);
 
 process.on('exit', () => {
   logger.flush();
 });
 
 // TODO: use SSE to stream the response
-// FIXME: Ctrl+C doesn't work as expected
-let isAborting = false;
 process.on('SIGINT', () => {
   spinner.stop();
   process.stdout.write('\x1B[?25h\n');
 
-  if (isAborting) {
-    console.error(pc.red('✖ Force fully exited.'));
+  if (isGenerating) {
+    abortController.abort();
+    console.error(pc.yellow('Generation cancelled.'));
+    renewAbortController();
+    return;
+  }
+
+  const now = Date.now();
+  if (now - lastSigintAt < 2000 && lastSigintAt > 0) {
     process.exit(130);
   }
 
-  isAborting = true;
-  console.error(pc.yellow('✖ Cancelling request... (Press Ctrl+C again to force exit)'));
-  console.error(
-    pc.dim(
-      'We are shutting down gracefully. Some operations may take a moment to stop.\nIf it does not exit shortly, press Ctrl+C again to force quit.',
-    ),
-  );
-  abortController.abort();
-
-  setTimeout(() => {
-    logger.debug('Graceful abort timeout, forcing exit.');
-    logger.flush();
-    process.exit(130);
-  }, 2000);
+  lastSigintAt = now;
+  console.error(pc.dim('再按一次 Ctrl+C 退出'));
 });
 
 cli.command('onboard', 'Initialize ACLIx configuration').action(async () => {
-  await onboardAction(abortController.signal);
+  await onboardAction(getAbortSignal());
 });
 
 cli
   .command('chat <query>', 'Chat with AI to analyze intent and execute commands')
   .action(async (query: string) => {
-    await chatAction(query, abortController.signal);
+    await chatAction(query, getAbortSignal());
   });
 
 cli.command('config', 'Inspect and manage local config').action(() => {
@@ -74,30 +85,48 @@ cli.command('config', 'Inspect and manage local config').action(() => {
 cli.help();
 cli.version('1.0.0');
 
-try {
-  cli.parse(process.argv, { run: false });
-  await cli.runMatchedCommand();
-} catch (error: unknown) {
-  const err = error as any;
-  if (
-    err?.name === 'AbortError' ||
-    err?.cause?.name === 'AbortError' ||
-    (err instanceof Error && err.message.toLowerCase().includes('abort'))
-  ) {
-    logger.debug('Process cleanly aborted by user');
-    console.error(pc.dim('Cancelled by user. Exiting...'));
-    logger.flush();
-    process.exit(130);
-  } else if (error instanceof ConfigError) {
-    logger.error({ code: error.code, message: error.message }, 'Configuration error');
-    console.error(pc.yellow('Tip: run `acli onboard` to complete setup.'));
-    process.exitCode = 1;
-  } else if (error instanceof AclixError) {
-    logger.error({ code: error.code, message: error.message }, 'ACLIX error');
-    process.exitCode = 1;
-  } else {
-    logger.error({ error }, 'Unexpected error');
-    console.error(error);
-    process.exitCode = 1;
+function isAbortLike(error: unknown): boolean {
+  if (error instanceof Error && error.name === 'AbortError') {
+    return true;
+  }
+  if (error instanceof Error && error.cause instanceof Error && error.cause.name === 'AbortError') {
+    return true;
+  }
+  if (error instanceof Error && error.message.toLowerCase().includes('abort')) {
+    return true;
+  }
+  return false;
+}
+
+async function bootstrap() {
+  try {
+    cli.parse(process.argv, { run: false });
+    if (!cli.matchedCommandName && cli.args.length === 0) {
+      const { replAction } = await import('./cli/commands/repl.js');
+      await replAction();
+    } else {
+      await cli.runMatchedCommand();
+    }
+  } catch (error: unknown) {
+    if (isAbortLike(error)) {
+      // FIXME: should first cancel the agent task, then press control+c again to exit
+      logger.debug('Process cleanly aborted by user');
+      console.error(pc.dim('Cancelled by user. Exiting...'));
+      logger.flush();
+      process.exit(130);
+    } else if (error instanceof ConfigError) {
+      logger.error({ code: error.code, message: error.message }, 'Configuration error');
+      console.error(pc.yellow('Tip: run `acli onboard` to complete setup.'));
+      process.exitCode = 1;
+    } else if (error instanceof AclixError) {
+      logger.error({ code: error.code, message: error.message }, 'ACLIX error');
+      process.exitCode = 1;
+    } else {
+      logger.error({ error }, 'Unexpected error');
+      console.error(error);
+      process.exitCode = 1;
+    }
   }
 }
+
+void bootstrap();

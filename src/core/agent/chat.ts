@@ -1,26 +1,18 @@
-import type { Tool } from 'ai';
+import type { ModelMessage as CoreMessage } from 'ai';
 
-import { buildSystemPrompt } from '../agent/prompt.js';
-import { createAskUserTool } from '../../domain/tools/ask.js';
-import { createFileEditTool } from '../../domain/tools/fileEdit.js';
-import { createFileReadTool } from '../../domain/tools/fileRead.js';
-import { createFileWriteTool } from '../../domain/tools/fileWrite.js';
-import { createGlobTool } from '../../domain/tools/glob.js';
-import { createGrepTool } from '../../domain/tools/grep.js';
-import { createShellTool } from '../../domain/tools/shell.js';
-import { createWebSearchTool } from '../../domain/tools/webSearch.js';
-import { createRuntimeContext } from '../../domain/context/index.js';
-import type { RuntimeContext } from '../../domain/context/index.js';
-import { logger } from '../../infrastructure/logger/index.js';
-import { runHostCommand } from '../../infrastructure/executor/host.js';
-import { LLMProvider } from '../../infrastructure/llm/provider.js';
+import { buildSystemPrompt } from './prompt.js';
+import { createRuntimeContext } from '../context/index.js';
+import type { RuntimeContext } from '../context/index.js';
+import { createStandardToolRegistry } from '../tools/registry.js';
+import { logger } from '../../services/logger/index.js';
+import { LLMProvider } from '../../services/llm/provider.js';
 import type { AgentCallbacks } from '../../shared/types.js';
 
-export async function executeChatWorkflow(
-  query: string,
+export function executeChatWorkflow(
+  messages: CoreMessage[],
   callbacks: AgentCallbacks,
   signal?: AbortSignal,
-): Promise<{ message: string }> {
+): ReturnType<LLMProvider['executeAgent']> {
   const ctx: RuntimeContext = createRuntimeContext();
   const basePrompt = buildSystemPrompt({
     cwd: ctx.cwd,
@@ -68,27 +60,16 @@ When using web_search:
 - If multiple sources conflict, mention the discrepancy`;
 
   logger.debug({ systemPrompt }, 'System prompt');
-  logger.debug({ query }, 'Query');
+  logger.debug({ messages }, 'Messages');
   logger.debug({ ctx }, 'Context');
 
-  const tools: Record<string, Tool> = {
-    shell: createShellTool(runHostCommand, callbacks),
-    ask_user: createAskUserTool(callbacks),
-    file_read: createFileReadTool(callbacks),
-    file_edit: createFileEditTool(callbacks),
-    file_write: createFileWriteTool(callbacks),
-    glob: createGlobTool(ctx.cwd, callbacks),
-    grep: createGrepTool(ctx.cwd, callbacks),
-    web_search: createWebSearchTool(callbacks),
-  };
+  const toolRegistry = createStandardToolRegistry(ctx, callbacks);
   const provider = new LLMProvider();
-  const text = await provider.executeAgent(
-    query,
+  return provider.executeAgent(
+    messages,
     systemPrompt,
-    tools,
+    toolRegistry.getTools(),
     signal,
     callbacks.onStepFinish,
   );
-
-  return { message: text };
 }
