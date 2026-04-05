@@ -1,7 +1,7 @@
 import pc from 'picocolors';
 
 import { resolveCliAbortSignal } from '../cli/abort-signal.js';
-import { logger } from '../services/logger/index.js';
+import { appLogger } from '../services/logger/index.js';
 import type { AgentCallbacks } from '../shared/types.js';
 import { askDangerConfirmation, askPassword, askTextInput } from './prompts.js';
 import { spinner } from './spinner.js';
@@ -27,8 +27,15 @@ export function createAgentCallbacks(signal?: AbortSignal): AgentCallbacks {
 
   return {
     onStepFinish: (event) => {
-      const { reasoningText, toolCalls } = event;
-      logger.debug({ reasoningText, toolCalls }, 'Step finished');
+      appLogger.info(
+        {
+          scope: 'agent',
+          reasoningText: event.reasoningText,
+          toolCalls: event.toolCalls,
+          raw: event,
+        },
+        'Agent LLM step finished',
+      );
     },
     onBeforeExecute: async (
       toolName: string,
@@ -38,11 +45,20 @@ export function createAgentCallbacks(signal?: AbortSignal): AgentCallbacks {
     ) => {
       const release = await uiMutex.lock();
       try {
+        appLogger.info(
+          { scope: 'agent', toolName, command, reasoning, risk },
+          'Agent requesting tool execution',
+        );
+
         if (risk === 'low') {
           spinner.stop();
           const prefix = `🛠️  Tool [${toolName}] `;
           const styledPrefix = toolName === 'read_skill' ? pc.magenta(prefix) : pc.dim(prefix);
           console.info(styledPrefix + pc.dim(command));
+          appLogger.info(
+            { scope: 'user', toolName, command, risk, confirmed: true },
+            'User responded to risk confirmation',
+          );
           spinner.start('Thinking...');
           return true;
         }
@@ -62,6 +78,11 @@ export function createAgentCallbacks(signal?: AbortSignal): AgentCallbacks {
             : 'This command may change system or project state. Execute?';
 
         const confirmed = await askDangerConfirmation(message, effectiveSignal());
+
+        appLogger.info(
+          { scope: 'user', toolName, command, risk, confirmed },
+          'User responded to risk confirmation',
+        );
 
         if (confirmed) {
           spinner.start('Executing command...');
@@ -83,6 +104,16 @@ export function createAgentCallbacks(signal?: AbortSignal): AgentCallbacks {
         const answer = isSecret
           ? await askPassword(message, '*', effectiveSignal())
           : await askTextInput(message, effectiveSignal());
+
+        appLogger.info(
+          {
+            scope: 'user',
+            message,
+            isSecret,
+            answer: isSecret ? '[REDACTED]' : answer,
+          },
+          'User answered prompt',
+        );
 
         spinner.start('Agent is resuming...');
         return answer;

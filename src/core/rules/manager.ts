@@ -6,7 +6,7 @@ import path from 'node:path';
 import fg from 'fast-glob';
 import matter from 'gray-matter';
 
-import { logger } from '../../services/logger/index.js';
+import { errorLogger } from '../../services/logger/index.js';
 import { findAclixPackageRoot } from '../../shared/utils.js';
 import type { RuleMetadata } from '../../shared/types.js';
 
@@ -95,7 +95,7 @@ export class RuleManager {
     try {
       raw = await readFile(filePath, 'utf8');
     } catch (error: unknown) {
-      logger.debug({ filePath, error }, 'rule scan: failed to read file');
+      errorLogger.error({ filePath, error }, 'Failed to read or parse metadata');
       return;
     }
 
@@ -103,7 +103,7 @@ export class RuleManager {
     try {
       parsed = matter(raw);
     } catch (error: unknown) {
-      logger.debug({ filePath, error }, 'rule scan: gray-matter parse failed');
+      errorLogger.error({ filePath, error }, 'Failed to read or parse metadata');
       return;
     }
 

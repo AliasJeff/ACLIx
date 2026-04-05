@@ -2,7 +2,7 @@ import type { ModelMessage as CoreMessage } from 'ai';
 import pc from 'picocolors';
 
 import { clearSession, loadSession, saveSession } from '../services/database/index.js';
-import { logger } from '../services/logger/index.js';
+import { errorLogger } from '../services/logger/index.js';
 
 export class SessionManager {
   readonly #cwd: string;
@@ -37,7 +37,7 @@ export class SessionManager {
       try {
         saveSession(this.#cwd, this.#messages);
       } catch (error) {
-        logger.debug({ error }, 'Failed to save session');
+        errorLogger.error({ error }, 'Failed to save session');
       }
     });
   }

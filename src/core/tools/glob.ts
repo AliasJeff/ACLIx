@@ -4,6 +4,7 @@ import fg from 'fast-glob';
 import { tool } from 'ai';
 import { z } from 'zod';
 
+import { errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
 
 const globInputSchema = z.object({
@@ -50,6 +51,7 @@ export function createGlobTool(defaultCwd: string, callbacks: AgentCallbacks) {
         }
         return lines.join('\n');
       } catch (error: unknown) {
+        errorLogger.error({ tool: 'glob', error }, 'Tool execution exception');
         return String(error instanceof Error ? error.message : error);
       }
     },

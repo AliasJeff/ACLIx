@@ -1,6 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 
+import { appLogger, errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
 
 const webSearchInputSchema = z.object({
@@ -40,6 +41,8 @@ export function createWebSearchTool(callbacks: AgentCallbacks) {
           return 'Web search failed: Missing TAVILY_API_KEY environment variable.';
         }
 
+        appLogger.info({ scope: 'agent', query }, 'Performing web search');
+
         const response = await fetch('https://api.tavily.com/search', {
           method: 'POST',
           headers: {
@@ -62,6 +65,8 @@ export function createWebSearchTool(callbacks: AgentCallbacks) {
         const data = dataUnknown as TavilySearchResponse;
         const results = Array.isArray(data.results) ? data.results : [];
 
+        appLogger.info({ scope: 'agent', resultsCount: data.results?.length }, 'Web search completed');
+
         return {
           query,
           answer: data.answer ?? '',
@@ -72,6 +77,7 @@ export function createWebSearchTool(callbacks: AgentCallbacks) {
           })),
         };
       } catch (error: unknown) {
+        errorLogger.error({ tool: 'web_search', error }, 'Tool execution exception');
         const message = error instanceof Error ? error.message : String(error);
         return `Web search failed: ${message}`;
       }

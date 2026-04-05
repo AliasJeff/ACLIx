@@ -2,6 +2,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 
 import { mergeAgentAndServerRisk, type RiskLevel } from '../security/evaluator.js';
+import { errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
 
 const riskEnum = z.enum(['low', 'medium', 'high']);
@@ -33,6 +34,7 @@ export function createShellTool(
       try {
         return await executeCommand(command, abortSignal);
       } catch (error: unknown) {
+        errorLogger.error({ tool: 'shell', error }, 'Tool execution exception');
         return String(error instanceof Error ? error.message : error);
       }
     },

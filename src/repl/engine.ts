@@ -4,7 +4,7 @@ import { createInterface } from 'node:readline/promises';
 import pc from 'picocolors';
 
 import { executeChatWorkflow } from '../core/agent/chat.js';
-import { logger } from '../services/logger/index.js';
+import { appLogger, errorLogger } from '../services/logger/index.js';
 import { getAbortSignal, setGenerating } from '../index.js';
 import { createAgentCallbacks } from '../ui/callbacks.js';
 import { spinner } from '../ui/spinner.js';
@@ -78,6 +78,8 @@ export class ReplEngine {
           continue;
         }
 
+        appLogger.info({ scope: 'user', input }, 'User entered REPL query');
+
         const slashOutcome = await this.#slashRegistry.handle(input, this.#session);
         if (slashOutcome === 'exit') {
           break;
@@ -118,7 +120,7 @@ export class ReplEngine {
           if (isAbortLike(error)) {
             console.info(pc.dim('Agent stopped by user.'));
           } else {
-            logger.error({ error }, 'REPL chat workflow failed');
+            errorLogger.error({ error }, 'Chat workflow failed');
             console.error(error);
           }
         } finally {

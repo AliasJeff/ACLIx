@@ -3,6 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { tool } from 'ai';
 import { z } from 'zod';
 
+import { errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
 
 const fileEditInputSchema = z.object({
@@ -65,6 +66,7 @@ export function createFileEditTool(callbacks: AgentCallbacks) {
         await writeFile(filePath, updatedContent, 'utf8');
         return 'File edited successfully';
       } catch (error: unknown) {
+        errorLogger.error({ tool: 'file_edit', error }, 'Tool execution exception');
         return String(error instanceof Error ? error.message : error);
       }
     },

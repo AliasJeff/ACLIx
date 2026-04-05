@@ -1,86 +1,49 @@
 import { createRequire } from 'node:module';
-import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
 import pino, { type Logger } from 'pino';
 
-// FIXME: only print log to console in development mode
 const require = createRequire(import.meta.url);
-const isDebugEnabled = process.env.ACLI_DEBUG === '1';
-const isDevelopment = process.env.NODE_ENV !== 'production';
-const defaultLevel = isDebugEnabled ? 'debug' : 'info';
+
 const logDir = path.join(os.homedir(), '.aclix', 'logs');
-if (!fs.existsSync(logDir)) {
-  fs.mkdirSync(logDir, { recursive: true });
-}
 
-function buildTransport() {
-  const targets: {
-    target: string;
-    options: Record<string, unknown>;
-  }[] = [];
+const isAclixDebug = process.env.ACLI_DEBUG === '1';
 
-  if (isDevelopment || isDebugEnabled) {
+function createFileLogger(filenamePrefix: string, level: string): Logger {
+  const targets: { target: string; options: Record<string, unknown> }[] = [
+    {
+      target: 'pino-roll',
+      options: {
+        file: path.join(logDir, filenamePrefix),
+        frequency: 'daily',
+        dateFormat: 'yyyy-MM-dd',
+        mkdir: true,
+      },
+    },
+  ];
+
+  if (isAclixDebug) {
     targets.push({
       target: require.resolve('pino-pretty'),
       options: {
         colorize: true,
         singleLine: true,
         translateTime: 'HH:MM:ss',
+        destination: 1,
       },
     });
   }
 
-  targets.push({
-    target: require.resolve('pino-roll'),
-    options: {
-      file: path.join(logDir, 'acli'),
-      extension: '.log',
-      frequency: 'daily',
-      mkdir: true,
-    },
-  });
-
-  if (targets.length === 0) {
-    return undefined;
-  }
-
-  try {
-    return pino.transport({
-      targets,
-    });
-  } catch {
-    if (!isDevelopment && !isDebugEnabled) {
-      return undefined;
-    }
-
-    return pino.transport({
-      target: require.resolve('pino-pretty'),
-      options: {
-        colorize: true,
-        singleLine: true,
-        translateTime: 'HH:MM:ss',
-      },
-    });
-  }
+  return pino({ level }, pino.transport({ targets }));
 }
 
-let loggerInstance: Logger | undefined;
+export const appLogger = createFileLogger('app', 'debug');
 
-function getLoggerInstance(): Logger {
-  loggerInstance ??= pino(
-    {
-      level: defaultLevel,
-    },
-    buildTransport(),
-  );
+export const errorLogger = createFileLogger('error', 'debug');
 
-  return loggerInstance;
-}
-
-export const logger = getLoggerInstance();
+export const logger = errorLogger;
 
 export function createLogger(): Logger {
-  return getLoggerInstance();
+  return errorLogger;
 }

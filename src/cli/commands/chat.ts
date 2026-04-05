@@ -1,13 +1,14 @@
 import pc from 'picocolors';
 
 import { executeChatWorkflow } from '../../core/agent/chat.js';
-import { logger } from '../../services/logger/index.js';
+import { appLogger, errorLogger } from '../../services/logger/index.js';
 import type { ModelMessage as CoreMessage } from 'ai';
 import { createAgentCallbacks } from '../../ui/callbacks.js';
 import { requireAuth } from '../middlewares/index.js';
 import { spinner } from '../../ui/spinner.js';
 
 export async function chatAction(query: string, signal?: AbortSignal): Promise<void> {
+  appLogger.info({ scope: 'user', query }, 'User executed chat command');
   requireAuth();
 
   const callbacks = createAgentCallbacks(signal);
@@ -34,7 +35,7 @@ export async function chatAction(query: string, signal?: AbortSignal): Promise<v
     process.stdout.write('\n');
     await result.response;
   } catch (error) {
-    logger.error({ error }, 'Chat workflow failed');
+    errorLogger.error({ error }, 'Chat workflow failed');
     throw error;
   } finally {
     spinner.stop();
