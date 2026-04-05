@@ -3,17 +3,29 @@ import type { ModelMessage as CoreMessage } from 'ai';
 import { buildSystemPrompt } from './prompt.js';
 import { createRuntimeContext } from '../context/index.js';
 import type { RuntimeContext } from '../context/index.js';
+import { SkillManager } from '../skills/manager.js';
 import { createStandardToolRegistry } from '../tools/registry.js';
 import { logger } from '../../services/logger/index.js';
 import { LLMProvider } from '../../services/llm/provider.js';
 import type { AgentCallbacks } from '../../shared/types.js';
 
-export function executeChatWorkflow(
+function escapeXmlText(text: string): string {
+  return text
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&apos;');
+}
+
+export async function executeChatWorkflow(
   messages: CoreMessage[],
   callbacks: AgentCallbacks,
   signal?: AbortSignal,
-): ReturnType<LLMProvider['executeAgent']> {
+): Promise<ReturnType<LLMProvider['executeAgent']>> {
   const ctx: RuntimeContext = createRuntimeContext();
+  await SkillManager.getInstance().scanSkills(ctx.cwd);
+
   const basePrompt = buildSystemPrompt({
     cwd: ctx.cwd,
     os: ctx.platform,
@@ -58,6 +70,23 @@ CRITICAL REQUIREMENT:
 When using web_search:
 - Prefer official documentation and authoritative sources
 - If multiple sources conflict, mention the discrepancy`;
+
+  const skills = SkillManager.getInstance().getAvailableSkills();
+  if (skills.length > 0) {
+    const skillBlocks = skills
+      .map(
+        (s) =>
+          `  <skill>\n    <name>${escapeXmlText(s.name)}</name>\n    <description>${escapeXmlText(s.description)}</description>\n  </skill>`,
+      )
+      .join('\n');
+    systemPrompt += `
+
+<available_skills>
+${skillBlocks}
+</available_skills>
+
+CRITICAL: You have access to specialized skills listed in <available_skills>. If the user's request matches a skill's description, you MUST FIRST use the read_skill tool to fetch its detailed instructions. Once loaded, strictly follow the skill's Standard Operating Procedure (SOP) without inventing steps.`;
+  }
 
   logger.debug({ systemPrompt }, 'System prompt');
   logger.debug({ messages }, 'Messages');

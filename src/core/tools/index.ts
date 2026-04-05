@@ -4,6 +4,8 @@ export { createFileReadTool } from './fileRead.js';
 export { createFileWriteTool } from './fileWrite.js';
 export { createGlobTool } from './glob.js';
 export { createGrepTool } from './grep.js';
+export { createPythonTool } from './python.js';
+export { createReadSkillTool } from './readSkill.js';
 export { ToolRegistry, createStandardToolRegistry } from './registry.js';
 export { createShellTool } from './shell.js';
 export { createWebSearchTool } from './webSearch.js';

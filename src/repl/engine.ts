@@ -81,7 +81,7 @@ export class ReplEngine {
         setGenerating(true);
         try {
           spinner.start('Thinking...');
-          const result = executeChatWorkflow(
+          const result = await executeChatWorkflow(
             this.#session.getMessages(),
             callbacks,
             getAbortSignal(),

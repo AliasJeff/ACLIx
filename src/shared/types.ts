@@ -33,3 +33,11 @@ export interface AgentCallbacks {
   ) => Promise<boolean>;
   onAskUser?: (message: string, isSecret?: boolean) => Promise<string>;
 }
+
+export interface SkillMetadata {
+  name: string;
+  description: string;
+  filePath: string;
+  skillDir: string;
+  scope: 'builtin' | 'user' | 'project';
+}

@@ -40,15 +40,21 @@ export function createAgentCallbacks(signal?: AbortSignal): AgentCallbacks {
       try {
         if (risk === 'low') {
           spinner.stop();
-          console.info(pc.dim(`🛠️ Tool [${toolName}] `) + pc.dim(command));
+          const prefix = `🛠️  Tool [${toolName}] `;
+          const styledPrefix = toolName === 'read_skill' ? pc.magenta(prefix) : pc.dim(prefix);
+          console.info(styledPrefix + pc.dim(command));
           spinner.start('Thinking...');
           return true;
         }
 
         spinner.stop();
 
-        console.info(pc.cyan(`\n💡 Reasoning: `) + pc.dim(reasoning));
-        console.info(pc.yellow(`🛠️ Tool [${toolName}] `) + pc.dim(`[${risk}] `) + pc.bold(command));
+        console.info(pc.cyan(`\n🧠  Reasoning: `) + pc.dim(reasoning));
+        const toolPrefix =
+          toolName === 'read_skill'
+            ? pc.magenta(`🛠️  Tool [${toolName}] `)
+            : pc.yellow(`🛠️  Tool [${toolName}] `);
+        console.info(toolPrefix + pc.dim(`[${risk}] `) + pc.bold(command));
 
         const message =
           risk === 'high'
