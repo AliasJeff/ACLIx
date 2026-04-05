@@ -1,7 +1,9 @@
 import { clearCommand } from './commands/clear.js';
+import { compactCommand } from './commands/compact.js';
 import { configCommand } from './commands/config.js';
 import { exitCommand } from './commands/exit.js';
 import { helpCommand } from './commands/help.js';
+import { historyCommand } from './commands/history.js';
 import { rulesCommand } from './commands/rules.js';
 import { skillsCommand } from './commands/skills.js';
 import { versionCommand } from './commands/version.js';
@@ -14,6 +16,8 @@ export function createSlashRegistry(): SlashCommandRegistry {
   registry.register(configCommand);
   registry.register(versionCommand);
   registry.register(helpCommand);
+  registry.register(historyCommand);
+  registry.register(compactCommand);
   registry.register(skillsCommand);
   registry.register(rulesCommand);
   return registry;

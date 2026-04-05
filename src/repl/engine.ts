@@ -4,7 +4,9 @@ import { createInterface } from 'node:readline/promises';
 import pc from 'picocolors';
 
 import { executeChatWorkflow } from '../core/agent/chat.js';
+import { ContextCompressor } from '../core/memory/compressor.js';
 import { appLogger, errorLogger } from '../services/logger/index.js';
+import { LLMProvider } from '../services/llm/provider.js';
 import { getAbortSignal, setGenerating } from '../index.js';
 import { createAgentCallbacks } from '../ui/callbacks.js';
 import { spinner } from '../ui/spinner.js';
@@ -92,6 +94,29 @@ export class ReplEngine {
 
         setGenerating(true);
         try {
+          const currentTokens = this.#session.getTokenCount();
+          if (currentTokens > 80000) {
+            try {
+              console.info(
+                pc.dim(
+                  '⚠️ Context memory limit exceeded (80k), performing background compression...',
+                ),
+              );
+              spinner.start('Optimizing context...');
+              const provider = new LLMProvider();
+              const compressed = await ContextCompressor.compress(
+                this.#session.getMessages(),
+                80000,
+                40000,
+                provider,
+              );
+              this.#session.setMessages(compressed);
+            } catch (error) {
+              errorLogger.error({ error }, 'Context compression failed');
+            } finally {
+              spinner.stop();
+            }
+          }
           spinner.start('Thinking...');
           const result = await executeChatWorkflow(
             this.#session.getMessages(),
