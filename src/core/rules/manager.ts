@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -7,31 +7,8 @@ import fg from 'fast-glob';
 import matter from 'gray-matter';
 
 import { logger } from '../../services/logger/index.js';
+import { findAclixPackageRoot } from '../../shared/utils.js';
 import type { RuleMetadata } from '../../shared/types.js';
-
-const ACLIX_PACKAGE_NAME = '@aliasjeff/acli';
-
-function findAclixPackageRoot(fromDir: string): string {
-  let dir = path.resolve(fromDir);
-  for (;;) {
-    const pkgPath = path.join(dir, 'package.json');
-    if (existsSync(pkgPath)) {
-      try {
-        const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { name?: string };
-        if (pkg.name === ACLIX_PACKAGE_NAME) {
-          return dir;
-        }
-      } catch {
-        /* ignore invalid package.json */
-      }
-    }
-    const parent = path.dirname(dir);
-    if (parent === dir) {
-      return path.resolve(fromDir);
-    }
-    dir = parent;
-  }
-}
 
 const RULE_GLOB_IGNORES = ['**/node_modules/**', '**/.git/**'];
 
@@ -155,8 +132,12 @@ export class RuleManager {
     this.byName.set(meta.name, meta);
   }
 
+  getAvailableRules(): RuleMetadata[] {
+    return [...this.byName.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }
+
   getRulesPrompt(): string {
-    const rules = [...this.byName.values()].sort((a, b) => a.name.localeCompare(b.name));
+    const rules = this.getAvailableRules();
     return rules
       .map(
         (r) =>
