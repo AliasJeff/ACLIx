@@ -17,7 +17,7 @@ export async function chatAction(query: string, signal?: AbortSignal): Promise<v
   try {
     // TODO: show show totalUsage
     const messages: CoreMessage[] = [{ role: 'user', content: query }];
-    const result = executeChatWorkflow(messages, callbacks, signal);
+    const result = await executeChatWorkflow(messages, callbacks, signal);
     let isFirstChunk = true;
     for await (const chunk of result.textStream) {
       if (isFirstChunk && chunk.length > 0) {

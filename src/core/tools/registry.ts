@@ -9,6 +9,8 @@ import { createFileReadTool } from './fileRead.js';
 import { createFileWriteTool } from './fileWrite.js';
 import { createGlobTool } from './glob.js';
 import { createGrepTool } from './grep.js';
+import { createReadSkillTool } from './readSkill.js';
+import { SkillManager } from '../skills/manager.js';
 import { createShellTool } from './shell.js';
 import { createWebSearchTool } from './webSearch.js';
 
@@ -37,5 +39,6 @@ export function createStandardToolRegistry(
   registry.register('glob', createGlobTool(ctx.cwd, callbacks));
   registry.register('grep', createGrepTool(ctx.cwd, callbacks));
   registry.register('web_search', createWebSearchTool(callbacks));
+  registry.register('read_skill', createReadSkillTool(SkillManager.getInstance(), callbacks));
   return registry;
 }

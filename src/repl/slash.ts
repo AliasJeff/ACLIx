@@ -3,10 +3,7 @@ import pc from 'picocolors';
 import type { SessionManager } from './session.js';
 
 export class SlashCommandRegistry {
-  async handle(
-    input: string,
-    session: SessionManager,
-  ): Promise<'continue' | 'exit' | 'unhandled'> {
+  async handle(input: string, session: SessionManager): Promise<'continue' | 'exit' | 'unhandled'> {
     if (!input.startsWith('/')) {
       return 'unhandled';
     }
@@ -26,6 +23,8 @@ export class SlashCommandRegistry {
       configAction();
       return 'continue';
     }
+
+    // TODO: Add more slash commands here
 
     console.info(pc.dim(`Unknown command: ${input}`));
     return 'continue';
