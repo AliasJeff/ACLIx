@@ -2,6 +2,7 @@ import type { CAC } from 'cac';
 import type { Logger } from 'pino';
 
 import { configManager } from '../../services/config/index.js';
+import { appLogger } from '../../services/logger/index.js';
 import type { LLMProvider, UserConfig } from '../../shared/types.js';
 import { askPassword, askSelect, showIntro, showOutro } from '../../ui/prompts.js';
 
@@ -11,6 +12,7 @@ type SupportedProvider = Extract<
 >;
 
 export async function onboardAction(signal?: AbortSignal): Promise<void> {
+  appLogger.info({ scope: 'user' }, 'User executed onboard command');
   showIntro('Welcome to ACLIx onboarding');
 
   const providerOptions: {

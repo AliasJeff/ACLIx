@@ -1,5 +1,6 @@
 import pc from 'picocolors';
 
+import { appLogger } from '../../services/logger/index.js';
 import type { SessionManager } from '../session.js';
 import type { SlashCommand, SlashCommandResult } from './types.js';
 
@@ -46,6 +47,8 @@ export class SlashCommandRegistry {
       console.info(pc.dim(`Unknown command: ${trimmed}`));
       return 'continue';
     }
+
+    appLogger.info({ scope: 'user', command: cmdName, args }, 'User executed slash command');
 
     const result = command.execute(args, session, this);
     return result instanceof Promise ? await result : result;

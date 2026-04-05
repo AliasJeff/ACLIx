@@ -1,6 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 
+import { errorLogger } from '../../services/logger/index.js';
 import type { SkillManager } from '../skills/manager.js';
 import type { AgentCallbacks } from '../../shared/types.js';
 import { AclixError } from '../../shared/errors.js';
@@ -34,6 +35,7 @@ export function createReadSkillTool(skillManager: SkillManager, callbacks: Agent
           await skillManager.getSkillContent(skillName);
         return `[Skill Directory: ${skillDir}]\n\n${content}`;
       } catch (error: unknown) {
+        errorLogger.error({ tool: 'read_skill', error }, 'Tool execution exception');
         if (error instanceof AclixError) {
           return `Failed to load skill "${skillName}": ${error.message}`;
         }

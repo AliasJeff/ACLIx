@@ -4,6 +4,7 @@ import { execa } from 'execa';
 import { tool } from 'ai';
 import { z } from 'zod';
 
+import { errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
 
 const grepInputSchema = z.object({
@@ -53,7 +54,8 @@ export function createGrepTool(defaultCwd: string, callbacks: AgentCallbacks) {
         if (rgResult.exitCode === 1) {
           return 'No matches found.';
         }
-      } catch {
+      } catch (error: unknown) {
+        errorLogger.error({ tool: 'grep', error }, 'Tool execution exception');
         // fallback to grep below when rg is unavailable
       }
 

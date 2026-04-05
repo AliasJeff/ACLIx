@@ -5,14 +5,13 @@ import pc from 'picocolors';
 
 import { initAbortSignalProvider } from './cli/abort-signal.js';
 import { chatAction } from './cli/commands/chat.js';
-import { createLogger } from './services/logger/index.js';
+import { appLogger, errorLogger } from './services/logger/index.js';
 import { AclixError, ConfigError } from './shared/errors.js';
 import { configAction } from './cli/commands/config.js';
 import { onboardAction } from './cli/commands/onboard.js';
 import { spinner } from './ui/spinner.js';
 
 const cli = cac('acli');
-const logger = createLogger();
 
 let abortController = new AbortController();
 let isGenerating = false;
@@ -33,11 +32,12 @@ export function getAbortSignal(): AbortSignal {
 initAbortSignalProvider(getAbortSignal);
 
 process.on('exit', () => {
-  logger.flush();
+  errorLogger.flush();
 });
 
 // TODO: use SSE to stream the response
 process.on('SIGINT', () => {
+  appLogger.warn({ scope: 'user' }, 'User interrupted process via SIGINT');
   spinner.stop();
   process.stdout.write('\x1B[?25h\n');
 
@@ -101,6 +101,7 @@ function isAbortLike(error: unknown): boolean {
 async function bootstrap() {
   try {
     cli.parse(process.argv, { run: false });
+    appLogger.info({ scope: 'user', args: cli.args, options: cli.options }, 'CLI Invoked');
     if (!cli.matchedCommandName && cli.args.length === 0) {
       const { replAction } = await import('./cli/commands/repl.js');
       await replAction();
@@ -110,19 +111,19 @@ async function bootstrap() {
   } catch (error: unknown) {
     if (isAbortLike(error)) {
       // FIXME: should first cancel the agent task, then press control+c again to exit
-      logger.debug('Process cleanly aborted by user');
+      errorLogger.debug('Process cleanly aborted by user');
       console.error(pc.dim('Cancelled by user. Exiting...'));
-      logger.flush();
+      errorLogger.flush();
       process.exit(130);
     } else if (error instanceof ConfigError) {
-      logger.error({ code: error.code, message: error.message }, 'Configuration error');
+      errorLogger.error({ code: error.code, message: error.message }, 'Configuration error');
       console.error(pc.yellow('Tip: run `acli onboard` to complete setup.'));
       process.exitCode = 1;
     } else if (error instanceof AclixError) {
-      logger.error({ code: error.code, message: error.message }, 'ACLIX error');
+      errorLogger.error({ code: error.code, message: error.message }, 'ACLIX error');
       process.exitCode = 1;
     } else {
-      logger.error({ error }, 'Unexpected error');
+      errorLogger.error({ error }, 'Fatal unexpected CLI error');
       console.error(error);
       process.exitCode = 1;
     }

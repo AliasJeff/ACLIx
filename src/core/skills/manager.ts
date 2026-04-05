@@ -6,7 +6,7 @@ import path from 'node:path';
 import fg from 'fast-glob';
 import matter from 'gray-matter';
 
-import { logger } from '../../services/logger/index.js';
+import { errorLogger } from '../../services/logger/index.js';
 import { AclixError } from '../../shared/errors.js';
 import { findAclixPackageRoot } from '../../shared/utils.js';
 import type { SkillMetadata } from '../../shared/types.js';
@@ -81,7 +81,7 @@ export class SkillManager {
     try {
       raw = await readFile(filePath, 'utf8');
     } catch (error: unknown) {
-      logger.debug({ filePath, error }, 'skill scan: failed to read file');
+      errorLogger.error({ filePath, error }, 'Failed to read or parse metadata');
       return;
     }
 
@@ -89,7 +89,7 @@ export class SkillManager {
     try {
       parsed = matter(raw);
     } catch (error: unknown) {
-      logger.debug({ filePath, error }, 'skill scan: gray-matter parse failed');
+      errorLogger.error({ filePath, error }, 'Failed to read or parse metadata');
       return;
     }
 
@@ -133,6 +133,7 @@ export class SkillManager {
     try {
       raw = await readFile(meta.filePath, 'utf8');
     } catch (error: unknown) {
+      errorLogger.error({ filePath: meta.filePath, error }, 'Failed to read or parse metadata');
       const cause = error instanceof Error ? error.message : String(error);
       throw new AclixError(
         'SKILL_READ_ERROR',
@@ -140,7 +141,16 @@ export class SkillManager {
       );
     }
 
-    const parsed = matter(raw);
+    let parsed: ReturnType<typeof matter>;
+    try {
+      parsed = matter(raw);
+    } catch (error: unknown) {
+      errorLogger.error({ filePath: meta.filePath, error }, 'Failed to read or parse metadata');
+      throw new AclixError(
+        'SKILL_PARSE_ERROR',
+        `Failed to parse skill markdown for "${name}" at ${meta.filePath}.`,
+      );
+    }
     const content = typeof parsed.content === 'string' ? parsed.content : String(parsed.content);
     return { content, skillDir: meta.skillDir };
   }

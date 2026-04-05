@@ -4,6 +4,7 @@ import { dirname } from 'node:path';
 import { tool } from 'ai';
 import { z } from 'zod';
 
+import { errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
 
 const fileWriteInputSchema = z.object({
@@ -33,6 +34,7 @@ export function createFileWriteTool(callbacks: AgentCallbacks) {
         await writeFile(filePath, content, 'utf8');
         return 'File written successfully';
       } catch (error: unknown) {
+        errorLogger.error({ tool: 'file_write', error }, 'Tool execution exception');
         return String(error instanceof Error ? error.message : error);
       }
     },

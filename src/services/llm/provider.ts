@@ -10,7 +10,7 @@ import { configManager } from '../config/index.js';
 import { DEFAULT_MAX_STEPS, DEFAULT_MODEL } from '../../shared/constants.js';
 import { LLMError } from '../../shared/errors.js';
 import { createDeepSeek } from '@ai-sdk/deepseek';
-import { logger } from '../logger/index.js';
+import { appLogger } from '../logger/index.js';
 
 export class LLMProvider {
   private readonly modelId: string;
@@ -88,7 +88,7 @@ export class LLMProvider {
       abortSignal: signal,
       onStepFinish,
     });
-    logger.debug({ result }, 'executeAgent streamText result');
+    appLogger.debug({ result }, 'executeAgent streamText result');
     return result;
   }
 

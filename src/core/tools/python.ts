@@ -7,6 +7,7 @@ import { tool } from 'ai';
 import { execa } from 'execa';
 import { z } from 'zod';
 
+import { appLogger, errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
 
 const COMMAND_TIMEOUT_MS = 60_000;
@@ -105,6 +106,7 @@ async function runPythonWithBinaryFallback(
     return formatPythonResult(result);
   } catch (error: unknown) {
     if (!isSpawnENOENT(error)) {
+      errorLogger.error({ tool: 'python', error }, 'Tool execution exception');
       return truncateOutput(`Python execution error: ${error instanceof Error ? error.message : String(error)}`);
     }
     try {
@@ -114,6 +116,7 @@ async function runPythonWithBinaryFallback(
       if (isSpawnENOENT(fallbackError)) {
         return 'Neither python3 nor python was found on PATH.';
       }
+      errorLogger.error({ tool: 'python', error: fallbackError }, 'Tool execution exception');
       return truncateOutput(
         `Python execution error: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
       );
@@ -144,6 +147,16 @@ export function createPythonTool(callbacks: AgentCallbacks) {
       if (!isApproved) {
         return 'Execution rejected.';
       }
+
+      appLogger.info(
+        {
+          scope: 'agent',
+          scriptPath: sp ? resolveUserScriptPath(sp) : undefined,
+          hasCode: Boolean(cd),
+          args,
+        },
+        'Executing Python context',
+      );
 
       if (sp) {
         return runPythonWithBinaryFallback(resolveUserScriptPath(sp), args);

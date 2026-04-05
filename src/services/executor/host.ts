@@ -1,5 +1,7 @@
 import { execaCommand } from 'execa';
 
+import { appLogger } from '../logger/index.js';
+
 const COMMAND_TIMEOUT_MS = 60_000;
 const OUTPUT_LIMIT = 10_000;
 const OUTPUT_HEAD_TAIL = 5_000;
@@ -21,6 +23,8 @@ function formatOutput(stdout: string, stderr: string): string {
 }
 
 export async function runHostCommand(command: string, signal?: AbortSignal): Promise<string> {
+  appLogger.info({ scope: 'agent', command }, 'Executing shell command on host');
+
   const result = await execaCommand(command, {
     shell: true,
     reject: false,
@@ -28,6 +32,18 @@ export async function runHostCommand(command: string, signal?: AbortSignal): Pro
     timeout: COMMAND_TIMEOUT_MS,
     cancelSignal: signal,
   });
+
+  appLogger.info(
+    {
+      scope: 'agent',
+      command,
+      timedOut: result.timedOut,
+      failed: result.failed,
+      stdoutLength: result.stdout.length,
+      stderrLength: result.stderr.length,
+    },
+    'Host command completed',
+  );
 
   if (result.timedOut || result.isCanceled) {
     return 'Command timed out after 60s. Remember you cannot execute interactive commands or infinite loops.';

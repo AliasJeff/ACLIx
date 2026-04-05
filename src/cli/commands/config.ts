@@ -6,6 +6,7 @@ import pc from 'picocolors';
 import type { Logger } from 'pino';
 
 import { configManager } from '../../services/config/index.js';
+import { appLogger } from '../../services/logger/index.js';
 
 function maskApiKey(value: string): string {
   if (value.length <= 8) {
@@ -16,6 +17,7 @@ function maskApiKey(value: string): string {
 }
 
 export function configAction(): void {
+  appLogger.info({ scope: 'user' }, 'User executed config command');
   const configPath = configManager.getConfigPath();
   const logPath = path.join(os.homedir(), '.aclix', 'logs');
   const config = configManager.getAll();

@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { tool } from 'ai';
 import { z } from 'zod';
 
+import { errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
 
 const fileReadInputSchema = z.object({
@@ -48,6 +49,7 @@ export function createFileReadTool(callbacks: AgentCallbacks) {
         }
         return withLineNumbers.join('\n');
       } catch (error: unknown) {
+        errorLogger.error({ tool: 'file_read', error }, 'Tool execution exception');
         if (
           typeof error === 'object' &&
           error !== null &&
