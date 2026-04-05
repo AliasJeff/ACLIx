@@ -9,7 +9,7 @@ function commandLabels(cmd: SlashCommand): string {
 
 export const helpCommand: SlashCommand = {
   name: 'help',
-  aliases: ['h', '?'],
+  aliases: ['?'],
   description: 'Show all available REPL commands',
   execute(_args, _session, registry): 'continue' {
     const commands = registry.getCommands().sort((a, b) => a.name.localeCompare(b.name));

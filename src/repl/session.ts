@@ -1,6 +1,7 @@
 import type { ModelMessage as CoreMessage } from 'ai';
 import pc from 'picocolors';
 
+import { countMessageTokens } from '../core/memory/tokenizer.js';
 import { clearSession, loadSession, saveSession } from '../services/database/index.js';
 import { errorLogger } from '../services/logger/index.js';
 
@@ -30,6 +31,15 @@ export class SessionManager {
 
   getMessages(): CoreMessage[] {
     return this.#messages;
+  }
+
+  setMessages(messages: CoreMessage[]): void {
+    this.#messages = [...messages];
+    this.save();
+  }
+
+  getTokenCount(): number {
+    return countMessageTokens(this.#messages);
   }
 
   save(): void {
