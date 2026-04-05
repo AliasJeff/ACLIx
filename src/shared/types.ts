@@ -38,5 +38,6 @@ export interface SkillMetadata {
   name: string;
   description: string;
   filePath: string;
+  skillDir: string;
   scope: 'builtin' | 'user' | 'project';
 }

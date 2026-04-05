@@ -85,7 +85,7 @@ export class SkillManager {
         continue;
       }
 
-      const files = await fg('**/*.md', {
+      const files = await fg('**/SKILL.md', {
         cwd: dir,
         absolute: true,
         onlyFiles: true,
@@ -120,18 +120,18 @@ export class SkillManager {
     const nameRaw = fm.name;
     const descriptionRaw = fm.description;
 
-    if (!isNonEmptyString(nameRaw) || !isNonEmptyString(descriptionRaw)) {
-      logger.debug(
-        { filePath, hasName: isNonEmptyString(nameRaw), hasDescription: isNonEmptyString(descriptionRaw) },
-        'skill scan: skipped file (missing name or description in frontmatter)',
-      );
-      return;
-    }
+    const skillDir = path.dirname(filePath);
+    const folderName = path.basename(skillDir);
+    const name = isNonEmptyString(nameRaw) ? nameRaw.trim() : folderName;
+    const description = isNonEmptyString(descriptionRaw)
+      ? descriptionRaw.trim()
+      : 'Skill: ' + folderName;
 
     const meta: SkillMetadata = {
-      name: nameRaw.trim(),
-      description: descriptionRaw.trim(),
+      name,
+      description,
       filePath,
+      skillDir,
       scope,
     };
 
@@ -142,7 +142,7 @@ export class SkillManager {
     return [...this.byName.values()];
   }
 
-  async getSkillContent(name: string): Promise<string> {
+  async getSkillContent(name: string): Promise<{ content: string; skillDir: string }> {
     const key = name.trim();
     const meta = this.byName.get(key);
     if (!meta) {
@@ -164,6 +164,7 @@ export class SkillManager {
     }
 
     const parsed = matter(raw);
-    return parsed.content;
+    const content = typeof parsed.content === 'string' ? parsed.content : String(parsed.content);
+    return { content, skillDir: meta.skillDir };
   }
 }

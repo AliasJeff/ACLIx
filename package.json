@@ -16,7 +16,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsup && copyfiles -u 1 \"src/builtin-skills/**/*.md\" dist/",
+    "build": "tsup && copyfiles -u 1 \"src/builtin-skills/**/*\" dist/",
     "start": "node ./bin/acli.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

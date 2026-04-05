@@ -9,6 +9,7 @@ import { createFileReadTool } from './fileRead.js';
 import { createFileWriteTool } from './fileWrite.js';
 import { createGlobTool } from './glob.js';
 import { createGrepTool } from './grep.js';
+import { createPythonTool } from './python.js';
 import { createReadSkillTool } from './readSkill.js';
 import { SkillManager } from '../skills/manager.js';
 import { createShellTool } from './shell.js';
@@ -32,6 +33,7 @@ export function createStandardToolRegistry(
 ): ToolRegistry {
   const registry = new ToolRegistry();
   registry.register('shell', createShellTool(runHostCommand, callbacks));
+  registry.register('python', createPythonTool(callbacks));
   registry.register('ask_user', createAskUserTool(callbacks));
   registry.register('file_read', createFileReadTool(callbacks));
   registry.register('file_edit', createFileEditTool(callbacks));

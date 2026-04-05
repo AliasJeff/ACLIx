@@ -30,7 +30,9 @@ export function createReadSkillTool(skillManager: SkillManager, callbacks: Agent
       }
 
       try {
-        return await skillManager.getSkillContent(skillName);
+        const { content, skillDir }: { content: string; skillDir: string } =
+          await skillManager.getSkillContent(skillName);
+        return `[Skill Directory: ${skillDir}]\n\n${content}`;
       } catch (error: unknown) {
         if (error instanceof AclixError) {
           return `Failed to load skill "${skillName}": ${error.message}`;
