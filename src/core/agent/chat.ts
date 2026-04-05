@@ -3,6 +3,7 @@ import type { ModelMessage as CoreMessage } from 'ai';
 import { buildSystemPrompt } from './prompt.js';
 import { createRuntimeContext } from '../context/index.js';
 import type { RuntimeContext } from '../context/index.js';
+import { RuleManager } from '../rules/manager.js';
 import { SkillManager } from '../skills/manager.js';
 import { createStandardToolRegistry } from '../tools/registry.js';
 import { logger } from '../../services/logger/index.js';
@@ -25,6 +26,7 @@ export async function executeChatWorkflow(
 ): Promise<ReturnType<LLMProvider['executeAgent']>> {
   const ctx: RuntimeContext = createRuntimeContext();
   await SkillManager.getInstance().scanSkills(ctx.cwd);
+  await RuleManager.getInstance().scanRules(ctx.cwd);
 
   const basePrompt = buildSystemPrompt({
     cwd: ctx.cwd,
@@ -86,6 +88,11 @@ ${skillBlocks}
 </available_skills>
 
 CRITICAL: You have access to specialized skills listed in <available_skills>. If the user's request matches a skill's description, you MUST FIRST use the read_skill tool to fetch its detailed instructions. Once loaded, strictly follow the skill's Standard Operating Procedure (SOP) without inventing steps.`;
+  }
+
+  const rulesPrompt = RuleManager.getInstance().getRulesPrompt();
+  if (rulesPrompt.trim().length > 0) {
+    systemPrompt += `\n\n<global_rules>\n${rulesPrompt}\n</global_rules>\n\nCRITICAL: You MUST strictly adhere to the instructions and constraints defined in the <global_rules> block at all times during this conversation. Project-level rules override user rules, which override builtin rules.`;
   }
 
   logger.debug({ systemPrompt }, 'System prompt');

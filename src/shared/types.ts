@@ -41,3 +41,11 @@ export interface SkillMetadata {
   skillDir: string;
   scope: 'builtin' | 'user' | 'project';
 }
+
+export interface RuleMetadata {
+  name: string;
+  description: string;
+  content: string;
+  ruleDir: string;
+  scope: 'builtin' | 'user' | 'project';
+}
