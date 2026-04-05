@@ -1,3 +1,4 @@
+import type { CompleterResult } from 'node:readline';
 import { createInterface } from 'node:readline/promises';
 
 import pc from 'picocolors';
@@ -8,7 +9,7 @@ import { getAbortSignal, setGenerating } from '../index.js';
 import { createAgentCallbacks } from '../ui/callbacks.js';
 import { spinner } from '../ui/spinner.js';
 import type { SessionManager } from './session.js';
-import type { SlashCommandRegistry } from './slash.js';
+import type { SlashCommandRegistry } from './slash/index.js';
 
 function isAbortLike(error: unknown): boolean {
   if (error instanceof Error && error.name === 'AbortError') {
@@ -37,7 +38,7 @@ export class ReplEngine {
 
     console.info(
       pc.green(
-        'Welcome to ACLIx REPL. Input your question to start the conversation; use /exit to exit, /clear to clear the screen and clear the context.',
+        'Welcome to ACLIx REPL. Input your question to start the conversation; use /help to show all available commands, /exit to exit.',
       ),
     );
 
@@ -49,6 +50,15 @@ export class ReplEngine {
           input: process.stdin,
           output: process.stdout,
           history: promptHistory,
+          completer: (line: string): CompleterResult => {
+            if (line.startsWith('/')) {
+              const commands = this.#slashRegistry.getCommandNames();
+              const lineLower = line.toLowerCase();
+              const hits = commands.filter((c) => c.toLowerCase().startsWith(lineLower));
+              return [hits.length > 0 ? hits : commands, line];
+            }
+            return [[], line];
+          },
         });
 
         const prompt = pc.bold(pc.green('acli ❯ '));

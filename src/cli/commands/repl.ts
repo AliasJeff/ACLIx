@@ -1,6 +1,6 @@
 import { ReplEngine } from '../../repl/engine.js';
 import { SessionManager } from '../../repl/session.js';
-import { SlashCommandRegistry } from '../../repl/slash.js';
+import { createSlashRegistry } from '../../repl/slash/index.js';
 import { requireAuth } from '../middlewares/index.js';
 
 export async function replAction(): Promise<void> {
@@ -9,7 +9,7 @@ export async function replAction(): Promise<void> {
   const session = new SessionManager(process.cwd());
   session.init();
 
-  const slashRegistry = new SlashCommandRegistry();
+  const slashRegistry = createSlashRegistry();
   const engine = new ReplEngine(session, slashRegistry);
   await engine.start();
 }

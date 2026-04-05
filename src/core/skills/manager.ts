@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -8,31 +8,8 @@ import matter from 'gray-matter';
 
 import { logger } from '../../services/logger/index.js';
 import { AclixError } from '../../shared/errors.js';
+import { findAclixPackageRoot } from '../../shared/utils.js';
 import type { SkillMetadata } from '../../shared/types.js';
-
-const ACLIX_PACKAGE_NAME = '@aliasjeff/acli';
-
-function findAclixPackageRoot(fromDir: string): string {
-  let dir = path.resolve(fromDir);
-  for (;;) {
-    const pkgPath = path.join(dir, 'package.json');
-    if (existsSync(pkgPath)) {
-      try {
-        const pkg = JSON.parse(readFileSync(pkgPath, 'utf8')) as { name?: string };
-        if (pkg.name === ACLIX_PACKAGE_NAME) {
-          return dir;
-        }
-      } catch {
-        /* ignore invalid package.json */
-      }
-    }
-    const parent = path.dirname(dir);
-    if (parent === dir) {
-      return path.resolve(fromDir);
-    }
-    dir = parent;
-  }
-}
 
 /**
  * Resolve builtin skills directory:
@@ -139,7 +116,7 @@ export class SkillManager {
   }
 
   getAvailableSkills(): SkillMetadata[] {
-    return [...this.byName.values()];
+    return [...this.byName.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
 
   async getSkillContent(name: string): Promise<{ content: string; skillDir: string }> {
