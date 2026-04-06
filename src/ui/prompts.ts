@@ -1,19 +1,12 @@
-import {
-  cancel,
-  confirm,
-  intro,
-  isCancel,
-  outro,
-  password,
-  select,
-  text,
-} from '@clack/prompts';
+import { cancel, confirm, intro, isCancel, outro, password, select, text } from '@clack/prompts';
 import type { Option } from '@clack/prompts';
 import clipboard from 'clipboardy';
 
+import { setPrompting } from '../cli/interrupt.js';
+
 function resolvePromptResult<T>(result: T | symbol): T {
   if (isCancel(result)) {
-    cancel('操作已取消');
+    cancel('Operation cancelled');
     process.exit(0);
   }
 
@@ -25,13 +18,18 @@ export async function askText(
   placeholder?: string,
   signal?: AbortSignal,
 ): Promise<string> {
-  const answer = await text({
-    message,
-    placeholder,
-    signal,
-  });
+  setPrompting(true);
+  try {
+    const answer = await text({
+      message,
+      placeholder,
+      signal,
+    });
 
-  return resolvePromptResult(answer).trim();
+    return resolvePromptResult(answer).trim();
+  } finally {
+    setPrompting(false);
+  }
 }
 
 export async function askPassword(
@@ -39,13 +37,18 @@ export async function askPassword(
   mask = '*',
   signal?: AbortSignal,
 ): Promise<string> {
-  const answer = await password({
-    message,
-    mask,
-    signal,
-  });
+  setPrompting(true);
+  try {
+    const answer = await password({
+      message,
+      mask,
+      signal,
+    });
 
-  return resolvePromptResult(answer).trim();
+    return resolvePromptResult(answer).trim();
+  } finally {
+    setPrompting(false);
+  }
 }
 
 export async function askSelect<T extends string>(
@@ -53,13 +56,18 @@ export async function askSelect<T extends string>(
   options: Option<T>[],
   signal?: AbortSignal,
 ): Promise<T> {
-  const answer = await select<T>({
-    message,
-    options,
-    signal,
-  });
+  setPrompting(true);
+  try {
+    const answer = await select<T>({
+      message,
+      options,
+      signal,
+    });
 
-  return resolvePromptResult(answer);
+    return resolvePromptResult(answer);
+  } finally {
+    setPrompting(false);
+  }
 }
 
 export function showIntro(message: string): void {
@@ -70,14 +78,22 @@ export function showOutro(message: string): void {
   outro(message);
 }
 
-export async function askDangerConfirmation(message: string, signal?: AbortSignal): Promise<boolean> {
-  const result = await confirm({
-    message,
-    initialValue: false,
-    signal,
-  });
+export async function askDangerConfirmation(
+  message: string,
+  signal?: AbortSignal,
+): Promise<boolean> {
+  setPrompting(true);
+  try {
+    const result = await confirm({
+      message,
+      initialValue: false,
+      signal,
+    });
 
-  return resolvePromptResult(result);
+    return resolvePromptResult(result);
+  } finally {
+    setPrompting(false);
+  }
 }
 
 export async function askTextInput(message: string, signal?: AbortSignal): Promise<string> {

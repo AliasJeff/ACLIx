@@ -1,6 +1,7 @@
 import pc from 'picocolors';
 
 import { executeChatWorkflow } from '../../core/agent/chat.js';
+import { setGenerating } from '../interrupt.js';
 import { appLogger, errorLogger } from '../../services/logger/index.js';
 import type { ModelMessage as CoreMessage } from 'ai';
 import { createAgentCallbacks } from '../../ui/callbacks.js';
@@ -16,6 +17,7 @@ export async function chatAction(query: string, signal?: AbortSignal): Promise<v
   // TODO: display random thinking content for better user experience
   spinner.start('Thinking...');
   try {
+    setGenerating(true);
     // TODO: show show totalUsage
     const messages: CoreMessage[] = [{ role: 'user', content: query }];
     const result = await executeChatWorkflow(messages, callbacks, signal);
@@ -38,6 +40,7 @@ export async function chatAction(query: string, signal?: AbortSignal): Promise<v
     errorLogger.error({ error }, 'Chat workflow failed');
     throw error;
   } finally {
+    setGenerating(false);
     spinner.stop();
   }
 }

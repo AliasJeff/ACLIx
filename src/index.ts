@@ -5,57 +5,21 @@ import pc from 'picocolors';
 
 import { initAbortSignalProvider } from './cli/abort-signal.js';
 import { chatAction } from './cli/commands/chat.js';
+import { getAbortSignal, handleSigint, setupKeyboardInterrupts } from './cli/interrupt.js';
 import { appLogger, errorLogger } from './services/logger/index.js';
 import { AclixError, ConfigError } from './shared/errors.js';
 import { configAction } from './cli/commands/config.js';
 import { onboardAction } from './cli/commands/onboard.js';
-import { spinner } from './ui/spinner.js';
 
 const cli = cac('acli');
 
-let abortController = new AbortController();
-let isGenerating = false;
-let lastSigintAt = 0;
-
-export function setGenerating(val: boolean): void {
-  isGenerating = val;
-}
-
-export function renewAbortController(): void {
-  abortController = new AbortController();
-}
-
-export function getAbortSignal(): AbortSignal {
-  return abortController.signal;
-}
-
 initAbortSignalProvider(getAbortSignal);
+setupKeyboardInterrupts();
 
 process.on('exit', () => {
   errorLogger.flush();
 });
-
-// TODO: use SSE to stream the response
-process.on('SIGINT', () => {
-  appLogger.warn({ scope: 'user' }, 'User interrupted process via SIGINT');
-  spinner.stop();
-  process.stdout.write('\x1B[?25h\n');
-
-  if (isGenerating) {
-    abortController.abort();
-    console.error(pc.yellow('Generation cancelled.'));
-    renewAbortController();
-    return;
-  }
-
-  const now = Date.now();
-  if (now - lastSigintAt < 2000 && lastSigintAt > 0) {
-    process.exit(130);
-  }
-
-  lastSigintAt = now;
-  console.error(pc.dim('再按一次 Ctrl+C 退出'));
-});
+process.on('SIGINT', handleSigint);
 
 cli.command('onboard', 'Initialize ACLIx configuration').action(async () => {
   await onboardAction(getAbortSignal());
@@ -67,8 +31,8 @@ cli
     await chatAction(query, getAbortSignal());
   });
 
-cli.command('config', 'Inspect and manage local config').action(() => {
-  configAction();
+cli.command('config', 'Inspect and manage local config').action(async () => {
+  await configAction(getAbortSignal());
 });
 
 // TODO: usage command
@@ -131,3 +95,16 @@ async function bootstrap() {
 }
 
 void bootstrap();
+
+export {
+  abortController,
+  isGenerating,
+  isPrompting,
+  lastSigintAt,
+  getAbortSignal,
+  renewAbortController,
+  setGenerating,
+  setPrompting,
+  handleSigint,
+  setupKeyboardInterrupts,
+} from './cli/interrupt.js';
