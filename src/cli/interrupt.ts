@@ -32,6 +32,7 @@ function updateTerminalMode(): void {
     process.stdin.resume();
   } else {
     process.stdin.setRawMode(false);
+    process.stdin.pause();
   }
 }
 

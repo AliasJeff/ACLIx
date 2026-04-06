@@ -7,6 +7,7 @@ import type { ModelMessage as CoreMessage } from 'ai';
 import { createAgentCallbacks } from '../../ui/callbacks.js';
 import { requireAuth } from '../middlewares/index.js';
 import { spinner } from '../../ui/spinner.js';
+import { getRandomThinkingLabel } from '../../ui/thinking.js';
 
 export async function chatAction(query: string, signal?: AbortSignal): Promise<void> {
   appLogger.info({ scope: 'user', query }, 'User executed chat command');
@@ -14,8 +15,7 @@ export async function chatAction(query: string, signal?: AbortSignal): Promise<v
 
   const callbacks = createAgentCallbacks(signal);
 
-  // TODO: display random thinking content for better user experience
-  spinner.start('Thinking...');
+  spinner.start(getRandomThinkingLabel());
   try {
     setGenerating(true);
     // TODO: show show totalUsage

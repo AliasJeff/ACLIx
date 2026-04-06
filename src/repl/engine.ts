@@ -10,6 +10,7 @@ import { appLogger, errorLogger } from '../services/logger/index.js';
 import { LLMProvider } from '../services/llm/provider.js';
 import { createAgentCallbacks } from '../ui/callbacks.js';
 import { spinner } from '../ui/spinner.js';
+import { getRandomThinkingLabel } from '../ui/thinking.js';
 import type { SessionManager } from './session.js';
 import type { SlashCommandRegistry } from './slash/index.js';
 
@@ -131,7 +132,7 @@ export class ReplEngine {
               spinner.stop();
             }
           }
-          spinner.start('Thinking...');
+          spinner.start(getRandomThinkingLabel());
           const result = await executeChatWorkflow(
             this.#session.getMessages(),
             callbacks,

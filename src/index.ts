@@ -72,6 +72,7 @@ async function bootstrap() {
     } else {
       await cli.runMatchedCommand();
     }
+    process.exit(0);
   } catch (error: unknown) {
     if (isAbortLike(error)) {
       // FIXME: should first cancel the agent task, then press control+c again to exit
