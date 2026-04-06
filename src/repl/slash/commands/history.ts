@@ -8,11 +8,11 @@ const DISPLAY_MAX = 300;
 function parseCount(args: string): number {
   const t = args.trim();
   if (!t) {
-    return 5;
+    return 10;
   }
   const n = Number.parseInt(t, 10);
   if (!Number.isFinite(n) || n < 1) {
-    return 5;
+    return 10;
   }
   return n;
 }
@@ -48,7 +48,7 @@ function extractDisplayText(message: CoreMessage): string {
 
 export const historyCommand: SlashCommand = {
   name: 'history',
-  description: 'Show recent conversation history (default 5)',
+  description: 'Show recent conversation history (default 10)',
   execute(args, session): 'continue' {
     const n = parseCount(args);
     const all = session.getMessages();

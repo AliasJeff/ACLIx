@@ -1,10 +1,12 @@
 import pc from 'picocolors';
 
 import { resolveCliAbortSignal } from '../cli/abort-signal.js';
+import { setPrompting } from '../cli/interrupt.js';
 import { appLogger } from '../services/logger/index.js';
 import type { AgentCallbacks } from '../shared/types.js';
 import { askDangerConfirmation, askPassword, askTextInput } from './prompts.js';
 import { spinner } from './spinner.js';
+import { getRandomThinkingLabel } from './thinking.js';
 
 class AsyncMutex {
   private promise = Promise.resolve();
@@ -44,6 +46,7 @@ export function createAgentCallbacks(signal?: AbortSignal): AgentCallbacks {
       risk: 'low' | 'medium' | 'high',
     ) => {
       const release = await uiMutex.lock();
+      setPrompting(true);
       try {
         appLogger.info(
           { scope: 'agent', toolName, command, reasoning, risk },
@@ -59,7 +62,7 @@ export function createAgentCallbacks(signal?: AbortSignal): AgentCallbacks {
             { scope: 'user', toolName, command, risk, confirmed: true },
             'User responded to risk confirmation',
           );
-          spinner.start('Thinking...');
+          spinner.start(getRandomThinkingLabel());
           return true;
         }
 
@@ -92,11 +95,13 @@ export function createAgentCallbacks(signal?: AbortSignal): AgentCallbacks {
 
         return confirmed;
       } finally {
+        setPrompting(false);
         release();
       }
     },
     onAskUser: async (message: string, isSecret?: boolean) => {
       const release = await uiMutex.lock();
+      setPrompting(true);
       try {
         spinner.stop();
 
@@ -118,6 +123,7 @@ export function createAgentCallbacks(signal?: AbortSignal): AgentCallbacks {
         spinner.start('Agent is resuming...');
         return answer;
       } finally {
+        setPrompting(false);
         release();
       }
     },

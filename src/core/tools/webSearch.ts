@@ -1,6 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 
+import { configManager } from '../../services/config/index.js';
 import { appLogger, errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
 
@@ -36,9 +37,9 @@ export function createWebSearchTool(callbacks: AgentCallbacks) {
       }
 
       try {
-        const apiKey = process.env.TAVILY_API_KEY;
+        const apiKey = configManager.get('tavilyApiKey') ?? process.env.TAVILY_API_KEY;
         if (!apiKey) {
-          return 'Web search failed: Missing TAVILY_API_KEY environment variable.';
+          return 'Web search failed: Missing Tavily API key. Set tavilyApiKey in config or TAVILY_API_KEY env var.';
         }
 
         appLogger.info({ scope: 'agent', query }, 'Performing web search');
@@ -65,7 +66,10 @@ export function createWebSearchTool(callbacks: AgentCallbacks) {
         const data = dataUnknown as TavilySearchResponse;
         const results = Array.isArray(data.results) ? data.results : [];
 
-        appLogger.info({ scope: 'agent', resultsCount: data.results?.length }, 'Web search completed');
+        appLogger.info(
+          { scope: 'agent', resultsCount: data.results?.length },
+          'Web search completed',
+        );
 
         return {
           query,

@@ -5,11 +5,12 @@ import pc from 'picocolors';
 
 import { executeChatWorkflow } from '../core/agent/chat.js';
 import { ContextCompressor } from '../core/memory/compressor.js';
+import { getAbortSignal, handleSigint, setGenerating } from '../cli/interrupt.js';
 import { appLogger, errorLogger } from '../services/logger/index.js';
 import { LLMProvider } from '../services/llm/provider.js';
-import { getAbortSignal, setGenerating } from '../index.js';
 import { createAgentCallbacks } from '../ui/callbacks.js';
 import { spinner } from '../ui/spinner.js';
+import { getRandomThinkingLabel } from '../ui/thinking.js';
 import type { SessionManager } from './session.js';
 import type { SlashCommandRegistry } from './slash/index.js';
 
@@ -37,12 +38,22 @@ export class ReplEngine {
 
   async start(): Promise<void> {
     const callbacks = createAgentCallbacks();
+    const logo = `
+    ___   ________    ____
+   /   | / ____/ /   /  _/_  __
+  / /| |/ /   / /    / / | |/_/
+ / ___ / /___/ /____/ / _>  < 
+/_/  |_\\____/_____/___//_/|_|
+`;
+
+    console.info(pc.cyan(pc.bold(logo)));
 
     console.info(
       pc.green(
         'Welcome to ACLIx REPL. Input your question to start the conversation; use /help to show all available commands, /exit to exit.',
       ),
     );
+    console.info(pc.dim('Hint: Press ESC to interrupt generation, press Ctrl+C twice to exit.'));
 
     let promptHistory: string[] = [];
 
@@ -61,6 +72,10 @@ export class ReplEngine {
             }
             return [[], line];
           },
+        });
+        rl.on('SIGINT', () => {
+          handleSigint();
+          rl.prompt();
         });
 
         const prompt = pc.bold(pc.green('acli ❯ '));
@@ -92,8 +107,8 @@ export class ReplEngine {
 
         this.#session.addMessage({ role: 'user', content: input });
 
-        setGenerating(true);
         try {
+          setGenerating(true);
           const currentTokens = this.#session.getTokenCount();
           if (currentTokens > 80000) {
             try {
@@ -117,7 +132,7 @@ export class ReplEngine {
               spinner.stop();
             }
           }
-          spinner.start('Thinking...');
+          spinner.start(getRandomThinkingLabel());
           const result = await executeChatWorkflow(
             this.#session.getMessages(),
             callbacks,

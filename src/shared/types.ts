@@ -17,6 +17,7 @@ export interface UserConfig {
   provider: LLMProvider;
   apiKey: string;
   model: string;
+  tavilyApiKey?: string;
   baseUrl?: string;
   organization?: string;
   temperature?: number;

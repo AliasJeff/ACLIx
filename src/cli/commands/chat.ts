@@ -1,11 +1,13 @@
 import pc from 'picocolors';
 
 import { executeChatWorkflow } from '../../core/agent/chat.js';
+import { setGenerating } from '../interrupt.js';
 import { appLogger, errorLogger } from '../../services/logger/index.js';
 import type { ModelMessage as CoreMessage } from 'ai';
 import { createAgentCallbacks } from '../../ui/callbacks.js';
 import { requireAuth } from '../middlewares/index.js';
 import { spinner } from '../../ui/spinner.js';
+import { getRandomThinkingLabel } from '../../ui/thinking.js';
 
 export async function chatAction(query: string, signal?: AbortSignal): Promise<void> {
   appLogger.info({ scope: 'user', query }, 'User executed chat command');
@@ -13,9 +15,9 @@ export async function chatAction(query: string, signal?: AbortSignal): Promise<v
 
   const callbacks = createAgentCallbacks(signal);
 
-  // TODO: display random thinking content for better user experience
-  spinner.start('Thinking...');
+  spinner.start(getRandomThinkingLabel());
   try {
+    setGenerating(true);
     // TODO: show show totalUsage
     const messages: CoreMessage[] = [{ role: 'user', content: query }];
     const result = await executeChatWorkflow(messages, callbacks, signal);
@@ -38,6 +40,7 @@ export async function chatAction(query: string, signal?: AbortSignal): Promise<v
     errorLogger.error({ error }, 'Chat workflow failed');
     throw error;
   } finally {
+    setGenerating(false);
     spinner.stop();
   }
 }
