@@ -165,6 +165,75 @@ function serializeMessagesForSummary(messages: CoreMessage[]): string {
 /** Namespace-style API with a single entrypoint (static `compress`). */
 // eslint-disable-next-line @typescript-eslint/no-extraneous-class -- spec requires a class with static method
 export class ContextCompressor {
+  static async rollingCompress(
+    messages: CoreMessage[],
+    keepRecent: number,
+    provider: LLMProvider,
+  ): Promise<CoreMessage[]> {
+    if (keepRecent < 0) {
+      throw new Error('keepRecent must be non-negative');
+    }
+
+    const total = messages.length;
+    if (total <= keepRecent + 5) {
+      return messages;
+    }
+
+    const splitIndex = total - keepRecent;
+    const safeEnd = findMaxSelfContainedEnd(messages, 0, splitIndex);
+
+    if (safeEnd <= 0) {
+      return messages;
+    }
+
+    const toCompress = messages.slice(0, safeEnd);
+    const recent = messages.slice(safeEnd);
+    const serialized = serializeMessagesForSummary(toCompress);
+
+    try {
+      const { summary } = await provider.generateStructured(
+        `${SUMMARY_USER_INSTRUCTION}\n\n${serialized}`,
+        SUMMARY_SYSTEM_PROMPT,
+        summarySchema,
+      );
+
+      const summaryMessage: CoreMessage = {
+        role: 'assistant',
+        content: `[Historical Context Summary]\n${summary}`,
+      };
+
+      const combined = [summaryMessage, ...recent];
+
+      appLogger.info(
+        {
+          scope: 'context',
+          phase: 'rolling',
+          totalMessagesBefore: total,
+          totalMessagesAfter: combined.length,
+          keptRecent,
+          compressedCount: toCompress.length,
+        },
+        'ContextCompressor: rolling compression applied',
+      );
+
+      return combined;
+    } catch (error) {
+      appLogger.info(
+        {
+          scope: 'context',
+          phase: 'rolling_failed',
+          totalMessagesBefore: total,
+          keptRecent,
+          compressedCount: toCompress.length,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        'ContextCompressor: rolling compression failed; returning original messages',
+      );
+
+      return messages;
+    }
+  }
+
   static async compress(
     messages: CoreMessage[],
     maxTokens: number,

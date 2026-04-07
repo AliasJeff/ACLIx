@@ -109,22 +109,17 @@ export class ReplEngine {
 
         try {
           setGenerating(true);
-          const currentTokens = this.#session.getTokenCount();
-          if (currentTokens > 80000) {
+          const sessionMessages = this.#session.getMessages();
+          if (sessionMessages.length > 40) {
             try {
               console.info(
                 pc.dim(
-                  '⚠️ Context memory limit exceeded (80k), performing background compression...',
+                  '⚠️ Context message count exceeded (40), performing rolling compression...',
                 ),
               );
-              spinner.start('Optimizing context...');
+              spinner.start('Compressing old context...');
               const provider = new LLMProvider();
-              const compressed = await ContextCompressor.compress(
-                this.#session.getMessages(),
-                80000,
-                40000,
-                provider,
-              );
+              const compressed = await ContextCompressor.rollingCompress(sessionMessages, 30, provider);
               this.#session.setMessages(compressed);
             } catch (error) {
               errorLogger.error({ error }, 'Context compression failed');

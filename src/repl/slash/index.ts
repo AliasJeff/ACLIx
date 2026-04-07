@@ -4,6 +4,7 @@ import { configCommand } from './commands/config.js';
 import { exitCommand } from './commands/exit.js';
 import { helpCommand } from './commands/help.js';
 import { historyCommand } from './commands/history.js';
+import { memoryCommand } from './commands/memory.js';
 import { onboardCommand } from './commands/onboard.js';
 import { rulesCommand } from './commands/rules.js';
 import { skillsCommand } from './commands/skills.js';
@@ -18,6 +19,7 @@ export function createSlashRegistry(): SlashCommandRegistry {
   registry.register(versionCommand);
   registry.register(helpCommand);
   registry.register(historyCommand);
+  registry.register(memoryCommand);
   registry.register(compactCommand);
   registry.register(skillsCommand);
   registry.register(rulesCommand);
