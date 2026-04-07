@@ -2,7 +2,11 @@
 
 English | [简体中文](./README_zh.md)
 
-ACLIx is a command-line interface assistant that utilizes large language models to execute tasks and answer queries within a terminal environment. It operates as an autonomous agent capable of interacting with the host operating system, local file system, and external web services.
+---
+
+![ACLIx](./assets/logo.jpg)
+
+**ACLIx** is a command-line interface assistant that utilizes large language models to execute tasks and answer queries within a terminal environment. It operates as an autonomous agent capable of interacting with the host operating system, local file system, and external web services.
 
 ### Features
 

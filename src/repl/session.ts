@@ -13,6 +13,10 @@ export class SessionManager {
     this.#cwd = cwd;
   }
 
+  get cwd(): string {
+    return this.#cwd;
+  }
+
   init(): void {
     const restored = loadSession(this.#cwd);
     this.#messages = restored.length > 0 ? [...restored] : [];

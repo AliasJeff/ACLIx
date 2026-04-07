@@ -24,9 +24,11 @@ export async function executeChatWorkflow(
   callbacks: AgentCallbacks,
   signal?: AbortSignal,
 ): Promise<ReturnType<LLMProvider['executeAgent']>> {
-  const ctx: RuntimeContext = createRuntimeContext();
+  const ctx: RuntimeContext = await createRuntimeContext();
   await SkillManager.getInstance().scanSkills(ctx.cwd);
   await RuleManager.getInstance().scanRules(ctx.cwd);
+
+  const { userLTM, projectLTM } = ctx.longTermMemory;
 
   const basePrompt = buildSystemPrompt({
     cwd: ctx.cwd,
@@ -47,6 +49,20 @@ For every shell tool call you must set the risk field yourself:
 - high: destructive, privileged, or system-wide impact (mass delete, chmod on sensitive paths, sudo, disk or service changes).
 
 If you are unsure between medium and high, choose the higher level.`;
+
+  if (userLTM !== null || projectLTM !== null) {
+    const safeUserLTM = userLTM ?? '';
+    const safeProjectLTM = projectLTM ?? '';
+
+    systemPrompt += `
+
+CRITICAL: You are equipped with a layered memory system. The <long_term_memory> contains permanent instructions and facts. You MUST prioritize and adhere to these memories.
+
+<long_term_memory>
+  <user_level_memory>${escapeXmlText(safeUserLTM)}</user_level_memory>
+  <project_level_memory>${escapeXmlText(safeProjectLTM)}</project_level_memory>
+</long_term_memory>`;
+  }
 
   systemPrompt += `
 
