@@ -41,6 +41,7 @@ export async function executeChatWorkflow(
   let systemPrompt = `${basePrompt}
 
 You are the Master Orchestrator. For complex tasks, multi-file edits, or extensive research, YOU MUST delegate work using the \`agent\` tool rather than executing low-level commands yourself.
+- **Plan-first Output**: After receiving a user task, you MUST FIRST output a concise execution plan before calling any tools. The plan must specify which subagent(s) you will spawn, whether you will run them in parallel, and what artifacts/results you expect back.
 - **Parallelism**: You can spawn up to 3 subagents in parallel by calling the \`agent\` tool multiple times in a single response.
 - **Resource Locks**: ONLY ONE read-write subagent (e.g., 'executor') can run at a time to prevent conflicts. Read-only subagents (e.g., 'explorer', 'planner') can run concurrently safely.
 - **Context Isolation**: Subagents have NO access to our conversation history. You MUST provide them with extremely detailed and self-contained \`task\` descriptions.

@@ -93,7 +93,7 @@ export function createAgentCallbacks(
 
         spinner.stop();
 
-        console.info(pc.cyan(`\n🧠  Reasoning: `) + pc.dim(reasoning));
+        console.info(pc.cyan(`\n🧠 Reasoning: `) + pc.dim(reasoning));
         const toolPrefix =
           toolName === 'read_skill'
             ? pc.magenta(`🛠️  ${subagentPrefix}Tool [${toolName}] `)
