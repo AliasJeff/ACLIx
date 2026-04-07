@@ -7,5 +7,6 @@ export { createGrepTool } from './grep.js';
 export { createPythonTool } from './python.js';
 export { createReadSkillTool } from './readSkill.js';
 export { ToolRegistry, createStandardToolRegistry } from './registry.js';
+export { createAgentTool } from './agent.js';
 export { createShellTool } from './shell.js';
 export { createWebSearchTool } from './webSearch.js';

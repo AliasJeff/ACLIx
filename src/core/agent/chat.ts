@@ -5,6 +5,7 @@ import { createRuntimeContext } from '../context/index.js';
 import type { RuntimeContext } from '../context/index.js';
 import { RuleManager } from '../rules/manager.js';
 import { SkillManager } from '../skills/manager.js';
+import { SubagentManager } from '../subagents/manager.js';
 import { createStandardToolRegistry } from '../tools/registry.js';
 import { appLogger } from '../../services/logger/index.js';
 import { LLMProvider } from '../../services/llm/provider.js';
@@ -27,6 +28,7 @@ export async function executeChatWorkflow(
   const ctx: RuntimeContext = await createRuntimeContext();
   await SkillManager.getInstance().scanSkills(ctx.cwd);
   await RuleManager.getInstance().scanRules(ctx.cwd);
+  await SubagentManager.getInstance().scanSubagents(ctx.cwd);
 
   const { userLTM, projectLTM } = ctx.longTermMemory;
 
@@ -37,6 +39,12 @@ export async function executeChatWorkflow(
   });
   // TODO: enhance system prompt
   let systemPrompt = `${basePrompt}
+
+You are the Master Orchestrator. For complex tasks, multi-file edits, or extensive research, YOU MUST delegate work using the \`agent\` tool rather than executing low-level commands yourself.
+- **Parallelism**: You can spawn up to 3 subagents in parallel by calling the \`agent\` tool multiple times in a single response.
+- **Resource Locks**: ONLY ONE read-write subagent (e.g., 'executor') can run at a time to prevent conflicts. Read-only subagents (e.g., 'explorer', 'planner') can run concurrently safely.
+- **Context Isolation**: Subagents have NO access to our conversation history. You MUST provide them with extremely detailed and self-contained \`task\` descriptions.
+- **Dynamic Creation**: You can dynamically invent new subagents! Use \`file_write\` to create a \`.aclix/subagents/<name>/SUBAGENT.md\` with YAML frontmatter (name, description, mode: 'read-only'|'read-write') and markdown body (system prompt), and then immediately spawn it!
 
 You are an autonomous AI CLI assistant. Use the shell tool to run commands and reach the user's goal step-by-step. If a command fails, read the error and adjust your plan. Do not tell the user to run commands manually; execute them via the tool. When the goal is done, reply with a clear natural-language summary.
 
@@ -49,6 +57,33 @@ For every shell tool call you must set the risk field yourself:
 - high: destructive, privileged, or system-wide impact (mass delete, chmod on sensitive paths, sudo, disk or service changes).
 
 If you are unsure between medium and high, choose the higher level.`;
+
+  const subagents = SubagentManager.getInstance().getAvailableSubagents();
+  if (subagents.length > 0) {
+    const blocks = subagents
+      .map((s) => {
+        const allowed = Array.isArray(s.allowedTools) ? s.allowedTools.join(', ') : '';
+        const disallowed = Array.isArray(s.disallowedTools) ? s.disallowedTools.join(', ') : '';
+        return (
+          `  <subagent>\n` +
+          `    <name>${escapeXmlText(s.name)}</name>\n` +
+          `    <description>${escapeXmlText(s.description)}</description>\n` +
+          `    <mode>${escapeXmlText(s.mode)}</mode>\n` +
+          `    <scope>${escapeXmlText(s.scope)}</scope>\n` +
+          `    <allowed_tools>${escapeXmlText(allowed)}</allowed_tools>\n` +
+          `    <disallowed_tools>${escapeXmlText(disallowed)}</disallowed_tools>\n` +
+          `  </subagent>`
+        );
+      })
+      .join('\n');
+    systemPrompt += `
+
+<available_subagents>
+${blocks}
+</available_subagents>
+
+CRITICAL: When delegating, pick a subagent by \`subagentName\` from <available_subagents>. If none fit, dynamically create one under \`.aclix/subagents\` and then spawn it.`;
+  }
 
   if (userLTM !== null || projectLTM !== null) {
     const safeUserLTM = userLTM ?? '';

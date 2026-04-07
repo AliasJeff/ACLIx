@@ -24,11 +24,28 @@ class AsyncMutex {
 
 const uiMutex = new AsyncMutex();
 
-export function createAgentCallbacks(signal?: AbortSignal): AgentCallbacks {
+export function createAgentCallbacks(
+  signal?: AbortSignal,
+  options?: { isSubagent?: boolean; agentName?: string },
+): AgentCallbacks {
   const effectiveSignal = (): AbortSignal => signal ?? resolveCliAbortSignal();
+  const subagentPrefix =
+    options?.isSubagent === true ? `[Subagent: ${options.agentName ?? 'unknown'}] ` : '';
 
   return {
     onStepFinish: (event) => {
+      if (options?.isSubagent) {
+        appLogger.debug(
+          {
+            scope: 'agent',
+            reasoningText: event.reasoningText,
+            toolCalls: event.toolCalls,
+            raw: event,
+          },
+          'Subagent LLM step finished',
+        );
+        return;
+      }
       appLogger.info(
         {
           scope: 'agent',
@@ -45,6 +62,14 @@ export function createAgentCallbacks(signal?: AbortSignal): AgentCallbacks {
       reasoning: string,
       risk: 'low' | 'medium' | 'high',
     ) => {
+      if (options?.isSubagent === true && risk === 'low') {
+        appLogger.info(
+          { scope: 'agent', toolName, command, reasoning, risk, subagent: options.agentName },
+          'Subagent silently approved low-risk tool execution',
+        );
+        return true;
+      }
+
       const release = await uiMutex.lock();
       setPrompting(true);
       try {
@@ -55,7 +80,7 @@ export function createAgentCallbacks(signal?: AbortSignal): AgentCallbacks {
 
         if (risk === 'low') {
           spinner.stop();
-          const prefix = `🛠️  Tool [${toolName}] `;
+          const prefix = `🛠️  ${subagentPrefix}Tool [${toolName}] `;
           const styledPrefix = toolName === 'read_skill' ? pc.magenta(prefix) : pc.dim(prefix);
           console.info(styledPrefix + pc.dim(command));
           appLogger.info(
@@ -71,14 +96,15 @@ export function createAgentCallbacks(signal?: AbortSignal): AgentCallbacks {
         console.info(pc.cyan(`\n🧠  Reasoning: `) + pc.dim(reasoning));
         const toolPrefix =
           toolName === 'read_skill'
-            ? pc.magenta(`🛠️  Tool [${toolName}] `)
-            : pc.yellow(`🛠️  Tool [${toolName}] `);
+            ? pc.magenta(`🛠️  ${subagentPrefix}Tool [${toolName}] `)
+            : pc.yellow(`🛠️  ${subagentPrefix}Tool [${toolName}] `);
         console.info(toolPrefix + pc.dim(`[${risk}] `) + pc.bold(command));
 
         const message =
-          risk === 'high'
+          subagentPrefix +
+          (risk === 'high'
             ? '⚠️ High-risk command detected. Execute?'
-            : 'This command may change system or project state. Execute?';
+            : 'This command may change system or project state. Execute?');
 
         const confirmed = await askDangerConfirmation(message, effectiveSignal());
 
@@ -106,14 +132,15 @@ export function createAgentCallbacks(signal?: AbortSignal): AgentCallbacks {
         spinner.stop();
 
         console.info(pc.cyan('\n🙋 Agent needs your input:'));
+        const effectiveMessage = subagentPrefix + message;
         const answer = isSecret
-          ? await askPassword(message, '*', effectiveSignal())
-          : await askTextInput(message, effectiveSignal());
+          ? await askPassword(effectiveMessage, '*', effectiveSignal())
+          : await askTextInput(effectiveMessage, effectiveSignal());
 
         appLogger.info(
           {
             scope: 'user',
-            message,
+            message: effectiveMessage,
             isSecret,
             answer: isSecret ? '[REDACTED]' : answer,
           },
