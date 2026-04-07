@@ -1,5 +1,7 @@
 # ACLIx
 
+English | [简体中文](./README_zh.md)
+
 ACLIx is a command-line interface assistant that utilizes large language models to execute tasks and answer queries within a terminal environment. It operates as an autonomous agent capable of interacting with the host operating system, local file system, and external web services.
 
 ### Features
@@ -32,16 +34,15 @@ Tools are native functions provided to the agent to interact with the environmen
 
 #### Skills
 
-Skills are Standard Operating Procedures defined in Markdown format (`SKILL.md`). They serve as workflows for specific tasks. The agent uses the `read_skill` tool to load step-by-step instructions dynamically when a task matches a skill's description.
+...
 
 #### Rules
 
-Rules are system constraints defined in Markdown format (`RULE.md`). These are injected into the agent's system prompt to enforce behavioral policies, such as language requirements or coding standards.
+...
 
 #### Memory and Compression
 
-- **Memory:** Session history is saved locally using a SQLite database (`acli.db`). Context is keyed by the current working directory, allowing sessions to resume automatically upon restarting the REPL mode in the same location.
-- **Memory Compression:** The system monitors token usage using a tokenizer. When the context exceeds 80,000 tokens, a background compression process runs. It truncates large tool outputs and uses the language model to generate a semantic summary of older interaction segments. This summary replaces the original messages to reduce the token count while maintaining context. Users can also trigger this process manually via the `/compact` command.
+...
 
 #### Extensibility
 
