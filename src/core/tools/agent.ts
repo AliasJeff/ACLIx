@@ -11,6 +11,7 @@ import { buildSystemPrompt } from '../agent/prompt.js';
 import { LLMProvider } from '../../services/llm/provider.js';
 import { AclixError } from '../../shared/errors.js';
 import { appLogger } from '../../services/logger/index.js';
+import { logToolEvent } from './toolEvent.js';
 
 const agentInputSchema = z.object({
   task: z.string().describe('Detailed instructions for the subagent to execute'),
@@ -25,6 +26,7 @@ export function createAgentTool(ctx: RuntimeContext, _mainCallbacks: AgentCallba
       'Spawn a specialized background subagent to complete a focused task. Use this for delegation (exploration, planning, or execution) when a separate isolated agent is helpful.',
     inputSchema: agentInputSchema,
     execute: async ({ task, subagentName }: AgentToolInput, { abortSignal }): Promise<string> => {
+      logToolEvent('agent', { subagentName: subagentName.trim(), taskLen: task.length });
       await SubagentManager.getInstance().scanSubagents(ctx.cwd);
 
       let subagent;

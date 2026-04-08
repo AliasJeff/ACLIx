@@ -1,1 +1,9 @@
-export { appLogger, createLogger, errorLogger, logger } from './index.js';
+export {
+  appLogger,
+  createLogger,
+  errorLogger,
+  eventLogger,
+  logCoreEvent,
+  logger,
+  type CoreEventDomain,
+} from './index.js';

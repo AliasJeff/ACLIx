@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import { errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
+import { fileBasename, logToolEvent } from './toolEvent.js';
 
 const fileReadInputSchema = z.object({
   filePath: z.string().describe('Absolute or relative file path to read'),
@@ -25,6 +26,7 @@ export function createFileReadTool(callbacks: AgentCallbacks) {
       'Read file content safely with line numbers. Use offset and limit for large files. Never use shell cat/head/tail/less for file reading.',
     inputSchema: fileReadInputSchema,
     execute: async ({ filePath, offset, limit }) => {
+      logToolEvent('file_read', { fileBase: fileBasename(filePath), offset, limit });
       const command = `file_read ${filePath}`;
       const reasoning = 'Read file content.';
       const isApproved = callbacks.onBeforeExecute

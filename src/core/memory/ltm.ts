@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
-import { appLogger, errorLogger } from '../../services/logger/index.js';
+import { appLogger, errorLogger, logCoreEvent } from '../../services/logger/index.js';
 
 interface LongTermMemory {
   userLTM: string | null;
@@ -30,6 +30,7 @@ async function readFileSafe(filePath: string, label: string): Promise<string | n
 }
 
 export async function readLongTermMemory(cwd: string): Promise<LongTermMemory> {
+  logCoreEvent('memory', 'readLongTermMemory', { cwd });
   const userLtmPath = path.join(os.homedir(), '.aclix', 'ACLI.md');
   const projectLtmPath = path.join(cwd, 'ACLI.md');
 

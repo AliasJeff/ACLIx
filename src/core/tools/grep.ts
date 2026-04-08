@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 import { errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
+import { fileBasename, logToolEvent } from './toolEvent.js';
 
 const grepInputSchema = z.object({
   pattern: z.string().min(1).describe('Regex pattern for searching file content'),
@@ -32,6 +33,11 @@ export function createGrepTool(defaultCwd: string, callbacks: AgentCallbacks) {
       'Search text inside files safely with ignored heavy directories and bounded output.',
     inputSchema: grepInputSchema,
     execute: async ({ pattern, path }) => {
+      logToolEvent('grep', {
+        patternLen: pattern.length,
+        patternPrefix: pattern.slice(0, 80),
+        pathBase: path ? fileBasename(path) : undefined,
+      });
       const command = `grep ${pattern}`;
       const reasoning = 'Search text content in files.';
       const isApproved = callbacks.onBeforeExecute

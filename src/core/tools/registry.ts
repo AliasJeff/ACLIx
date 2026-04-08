@@ -1,5 +1,6 @@
 import type { Tool } from 'ai';
 
+import { logCoreEvent } from '../../services/logger/index.js';
 import type { RuntimeContext } from '../context/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
 import { runHostCommand } from '../../services/executor/host.js';
@@ -20,18 +21,27 @@ export class ToolRegistry {
   private readonly tools = new Map<string, Tool>();
 
   register(name: string, tool: Tool): void {
+    logCoreEvent('tools', 'ToolRegistry.register', { name });
     this.tools.set(name, tool);
   }
 
   unregister(name: string): void {
+    logCoreEvent('tools', 'ToolRegistry.unregister', { name });
     this.tools.delete(name);
   }
 
-  getToolNames(): string[] {
+  /** Current names without emitting an event (used by `createStandardToolRegistry` summary). */
+  snapshotToolNames(): string[] {
     return [...this.tools.keys()];
   }
 
+  getToolNames(): string[] {
+    logCoreEvent('tools', 'ToolRegistry.getToolNames');
+    return this.snapshotToolNames();
+  }
+
   getTools(): Record<string, Tool> {
+    logCoreEvent('tools', 'ToolRegistry.getTools');
     return Object.fromEntries(this.tools);
   }
 }
@@ -42,6 +52,7 @@ export function createStandardToolRegistry(
   allowedTools?: string[],
   disallowedTools?: string[],
 ): ToolRegistry {
+  logCoreEvent('tools', 'createStandardToolRegistry', { cwd: ctx.cwd });
   const registry = new ToolRegistry();
   registry.register('agent', createAgentTool(ctx, callbacks));
   registry.register('shell', createShellTool(runHostCommand, callbacks));
@@ -63,12 +74,15 @@ export function createStandardToolRegistry(
 
   if (Array.isArray(allowedTools) && allowedTools.length > 0 && !allowedTools.includes('*')) {
     const allow = new Set(allowedTools);
-    for (const name of registry.getToolNames()) {
+    for (const name of registry.snapshotToolNames()) {
       if (!allow.has(name)) {
         registry.unregister(name);
       }
     }
   }
 
+  logCoreEvent('tools', 'createStandardToolRegistry.done', {
+    toolNames: registry.snapshotToolNames(),
+  });
   return registry;
 }

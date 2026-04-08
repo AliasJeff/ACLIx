@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { configManager } from '../../services/config/index.js';
 import { appLogger, errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
+import { logToolEvent, queryPreview } from './toolEvent.js';
 
 const webSearchInputSchema = z.object({
   query: z.string().min(1).describe('Search keywords for web lookup'),
@@ -25,6 +26,7 @@ export function createWebSearchTool(callbacks: AgentCallbacks) {
     description: 'Search the web via Tavily for up-to-date information and documentation.',
     inputSchema: webSearchInputSchema,
     execute: async ({ query }) => {
+      logToolEvent('web_search', queryPreview(query));
       const command = `web_search ${query}`;
       const reasoning = 'Fetch recent information from web sources.';
       const risk = 'low' as const;

@@ -6,7 +6,7 @@ import path from 'node:path';
 import fg from 'fast-glob';
 import matter from 'gray-matter';
 
-import { errorLogger } from '../../services/logger/index.js';
+import { errorLogger, logCoreEvent } from '../../services/logger/index.js';
 import { AclixError } from '../../shared/errors.js';
 import { findAclixPackageRoot } from '../../shared/utils.js';
 import type { SubagentMetadata, SubagentMode } from '../../shared/types.js';
@@ -55,11 +55,13 @@ export class SubagentManager {
   private constructor() {}
 
   static getInstance(): SubagentManager {
+    logCoreEvent('subagents', 'SubagentManager.getInstance');
     SubagentManager.instance ??= new SubagentManager();
     return SubagentManager.instance;
   }
 
   acquireSlot(mode: SubagentMode): () => void {
+    logCoreEvent('subagents', 'SubagentManager.acquireSlot', { mode });
     if (this.activeCount >= 3) {
       throw new AclixError('SUBAGENT_BUSY', 'Max 3 concurrent subagents reached. Please wait.');
     }
@@ -90,6 +92,7 @@ export class SubagentManager {
   }
 
   async scanSubagents(cwd: string): Promise<void> {
+    logCoreEvent('subagents', 'SubagentManager.scanSubagents', { cwd });
     this.byName.clear();
 
     const sources: { dir: string; scope: SubagentMetadata['scope'] }[] = [
@@ -177,10 +180,12 @@ export class SubagentManager {
   }
 
   getAvailableSubagents(): SubagentMetadata[] {
+    logCoreEvent('subagents', 'SubagentManager.getAvailableSubagents');
     return [...this.byName.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
 
   getSubagent(name: string): SubagentMetadata {
+    logCoreEvent('subagents', 'SubagentManager.getSubagent', { name: name.trim() });
     const key = name.trim();
     const meta = this.byName.get(key);
     if (!meta) {
