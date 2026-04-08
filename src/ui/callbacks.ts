@@ -31,6 +31,7 @@ export function createAgentCallbacks(
   const effectiveSignal = (): AbortSignal => signal ?? resolveCliAbortSignal();
   const subagentName = options?.agentName ?? 'unknown';
   const subagentPrefix = options?.isSubagent === true ? `[Subagent: ${subagentName}] ` : '';
+  const spinnerId = options?.isSubagent ? subagentName : 'main';
 
   return {
     onStepFinish: (event) => {
@@ -44,7 +45,7 @@ export function createAgentCallbacks(
           },
           'Subagent LLM step finished',
         );
-        spinner.start(`[Subagent: ${subagentName}] thinking...`);
+        spinner.start(`[Subagent: ${subagentName}] thinking...`, subagentName);
         return;
       }
       appLogger.info(
@@ -57,7 +58,7 @@ export function createAgentCallbacks(
         'Agent LLM step finished',
       );
       if (event.toolCalls.length > 0) {
-        spinner.start('Analyzing tool results...');
+        spinner.start('Analyzing tool results...', spinnerId);
       }
     },
     onBeforeExecute: async (
@@ -71,7 +72,7 @@ export function createAgentCallbacks(
           { scope: 'agent', toolName, command, reasoning, risk, subagent: options.agentName },
           'Subagent silently approved low-risk tool execution',
         );
-        spinner.start(`[Subagent: ${subagentName}] is using tool: ${toolName}...`);
+        spinner.start(`[Subagent: ${subagentName}] is using tool: ${toolName}...`, subagentName);
         return true;
       }
 
@@ -84,7 +85,7 @@ export function createAgentCallbacks(
         );
 
         if (risk === 'low') {
-          spinner.stop();
+          spinner.pause();
           const prefix = `🛠️  ${subagentPrefix}Tool [${toolName}] `;
           const styledPrefix = toolName === 'read_skill' ? pc.magenta(prefix) : pc.dim(prefix);
           console.info(styledPrefix + pc.dim(command));
@@ -92,11 +93,11 @@ export function createAgentCallbacks(
             { scope: 'user', toolName, command, risk, confirmed: true },
             'User responded to risk confirmation',
           );
-          spinner.start(getRandomThinkingLabel());
+          spinner.start(getRandomThinkingLabel(), spinnerId);
           return true;
         }
 
-        spinner.stop();
+        spinner.pause();
 
         console.info(pc.cyan(`\n🧠 Reasoning: `) + pc.dim(reasoning));
         const toolPrefix =
@@ -119,9 +120,9 @@ export function createAgentCallbacks(
         );
 
         if (confirmed) {
-          spinner.start('Executing command...');
+          spinner.start('Executing command...', spinnerId);
         } else {
-          spinner.start('Agent is reconsidering...');
+          spinner.start('Agent is reconsidering...', spinnerId);
         }
 
         return confirmed;
@@ -134,7 +135,7 @@ export function createAgentCallbacks(
       const release = await uiMutex.lock();
       setPrompting(true);
       try {
-        spinner.stop();
+        spinner.pause();
 
         console.info(pc.cyan('\n🙋 Agent needs your input:'));
         const effectiveMessage = subagentPrefix + message;
@@ -152,7 +153,7 @@ export function createAgentCallbacks(
           'User answered prompt',
         );
 
-        spinner.start('Agent is resuming...');
+        spinner.start('Agent is resuming...', spinnerId);
         return answer;
       } finally {
         setPrompting(false);

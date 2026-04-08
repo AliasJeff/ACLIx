@@ -5,6 +5,7 @@ import pc from 'picocolors';
 
 import { executeChatWorkflow } from '../core/agent/chat.js';
 import { ContextCompressor } from '../core/memory/compressor.js';
+import { SubagentManager } from '../core/subagents/manager.js';
 import { getAbortSignal, handleSigint, setGenerating } from '../cli/interrupt.js';
 import { appLogger, errorLogger } from '../services/logger/index.js';
 import { LLMProvider } from '../services/llm/provider.js';
@@ -167,6 +168,7 @@ export class ReplEngine {
         } finally {
           setGenerating(false);
           spinner.stop();
+          await SubagentManager.getInstance().cleanupDynamicSubagents();
         }
       }
     } finally {

@@ -8,6 +8,7 @@ import { createAgentCallbacks } from '../../ui/callbacks.js';
 import { requireAuth } from '../middlewares/index.js';
 import { spinner } from '../../ui/spinner.js';
 import { getRandomThinkingLabel } from '../../ui/thinking.js';
+import { SubagentManager } from '../../core/subagents/manager.js';
 
 export async function chatAction(query: string, signal?: AbortSignal): Promise<void> {
   appLogger.info({ scope: 'user', query }, 'User executed chat command');
@@ -48,5 +49,6 @@ export async function chatAction(query: string, signal?: AbortSignal): Promise<v
   } finally {
     setGenerating(false);
     spinner.stop();
+    await SubagentManager.getInstance().cleanupDynamicSubagents();
   }
 }

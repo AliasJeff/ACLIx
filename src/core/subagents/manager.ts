@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
+import { readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -47,6 +47,7 @@ export class SubagentManager {
   private static instance: SubagentManager | undefined;
 
   private byName = new Map<string, SubagentMetadata>();
+  private dynamicSubagents = new Set<string>();
 
   private activeCount = 0;
   private writerActive = false;
@@ -201,5 +202,19 @@ export class SubagentManager {
     }
     return meta;
   }
-}
 
+  trackDynamicSubagent(dirPath: string): void {
+    this.dynamicSubagents.add(dirPath);
+  }
+
+  async cleanupDynamicSubagents(): Promise<void> {
+    for (const dir of this.dynamicSubagents) {
+      try {
+        await rm(dir, { recursive: true, force: true });
+      } catch {
+        // Ignore errors so cleanup can continue.
+      }
+    }
+    this.dynamicSubagents.clear();
+  }
+}

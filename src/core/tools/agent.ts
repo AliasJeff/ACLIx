@@ -12,6 +12,7 @@ import type { PromptBuilderOptions } from '../agent/prompt.js';
 import { LLMProvider } from '../../services/llm/provider.js';
 import { AclixError } from '../../shared/errors.js';
 import { appLogger } from '../../services/logger/index.js';
+import { spinner } from '../../ui/spinner.js';
 import { logToolEvent } from './toolEvent.js';
 
 const agentInputSchema = z.object({
@@ -111,15 +112,20 @@ export function createAgentTool(ctx: RuntimeContext, _mainCallbacks: AgentCallba
 
         try {
           const provider = new LLMProvider();
-          const result = provider.executeAgent(
-            messages,
-            systemPrompt,
-            subagentRegistry.getTools(),
-            abortSignal,
-            subagentCallbacks.onStepFinish,
-          );
+          let text: string;
+          try {
+            const result = provider.executeAgent(
+              messages,
+              systemPrompt,
+              subagentRegistry.getTools(),
+              abortSignal,
+              subagentCallbacks.onStepFinish,
+            );
+            text = await Promise.resolve(result.text);
+          } finally {
+            spinner.stop(subagent.name);
+          }
 
-          const text = await Promise.resolve(result.text);
           if (text.trim().length === 0) {
             return 'Subagent completed but returned no text summary.';
           }

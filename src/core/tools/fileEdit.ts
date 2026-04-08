@@ -47,7 +47,8 @@ export function createFileEditTool(callbacks: AgentCallbacks) {
       });
       const command = `file_edit ${filePath}`;
       const reasoning = 'Edit existing file by exact oldString replacement.';
-      const risk = 'medium' as const;
+      const isAcliDir = /(?:^|[/\\])\.aclix?(?:[/\\]|$)/.test(filePath);
+      const risk = isAcliDir ? 'low' : 'medium';
       const isApproved = callbacks.onBeforeExecute
         ? await callbacks.onBeforeExecute('file_edit', command, reasoning, risk)
         : false;
