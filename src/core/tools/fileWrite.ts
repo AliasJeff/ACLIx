@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 
@@ -34,10 +35,17 @@ export function createFileWriteTool(callbacks: AgentCallbacks) {
       }
 
       try {
-        await mkdir(dirname(filePath), { recursive: true });
+        const targetDir = dirname(filePath);
+        const isNewDir = !existsSync(targetDir);
+
+        await mkdir(targetDir, { recursive: true });
         await writeFile(filePath, content, 'utf8');
-        if (/(?:^|[/\\])\.aclix?[/\\]subagents[/\\][^/\\]+[/\\]SUBAGENT\.md$/.test(filePath)) {
-          SubagentManager.getInstance().trackDynamicSubagent(resolve(dirname(filePath)));
+
+        if (
+          isNewDir &&
+          /(?:^|[/\\])\.aclix?[/\\]subagents[/\\]auto_[^/\\]+[/\\]SUBAGENT\.md$/.test(filePath)
+        ) {
+          SubagentManager.getInstance().trackDynamicSubagent(resolve(targetDir));
         }
         return 'File written successfully';
       } catch (error: unknown) {

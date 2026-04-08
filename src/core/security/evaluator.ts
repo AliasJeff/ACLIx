@@ -19,7 +19,6 @@ const ORDER: Record<RiskLevel, number> = {
 };
 
 export function maxRisk(a: RiskLevel, b: RiskLevel): RiskLevel {
-  logCoreEvent('security', 'maxRisk', { a, b });
   return ORDER[a] >= ORDER[b] ? a : b;
 }
 
@@ -59,15 +58,7 @@ export function evaluateServerRiskFloor(command: string): RiskLevel {
 
   const REDIRECT_OPS = new Set(['>', '>>', '1>', '2>', '&>']);
 
-  const highCommands = new Set([
-    'vi',
-    'vim',
-    'nano',
-    'mkfs',
-    'dd',
-    'shutdown',
-    'reboot',
-  ]);
+  const highCommands = new Set(['vi', 'vim', 'nano', 'mkfs', 'dd', 'shutdown', 'reboot']);
 
   const mediumCommands = new Set(['rm', 'mv', 'chmod', 'chown', 'curl', 'wget', 'tee']);
 

@@ -50,7 +50,10 @@ export function createAgentTool(ctx: RuntimeContext, _mainCallbacks: AgentCallba
       let subagent;
       try {
         subagent = SubagentManager.getInstance().getSubagent(subagentName);
-      } catch {
+      } catch (error: unknown) {
+        if (error instanceof AclixError) {
+          return error.message;
+        }
         return 'Error: Subagent not found.';
       }
 
@@ -140,4 +143,3 @@ export function createAgentTool(ctx: RuntimeContext, _mainCallbacks: AgentCallba
     },
   });
 }
-

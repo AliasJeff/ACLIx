@@ -54,7 +54,7 @@ export function logCoreEvent(
   if (payload === undefined) {
     eventLogger.info({ domain, action }, 'core event');
   } else {
-    eventLogger.info({ domain, action, ...payload }, 'core event');
+    eventLogger.info({ ...payload, domain, action }, 'core event');
   }
 }
 

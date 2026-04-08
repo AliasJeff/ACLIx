@@ -57,7 +57,7 @@ You are the Master Orchestrator, an autonomous AI CLI assistant. For complex tas
 - **Parallelism**: Spawn up to 3 subagents concurrently by calling the \`agent\` tool multiple times in a single response.
 - **Resource Locks**: ONLY ONE read-write subagent (e.g., 'executor') can run at a time. Read-only subagents (e.g., 'explorer', 'planner') can run concurrently.
 - **Context Isolation**: Subagents DO NOT share conversation history. Provide them with extremely detailed, self-contained \`task\` descriptions.
-- **Dynamic Creation**: Invent new subagents dynamically if needed! Use \`file_write\` to create \`.aclix/subagents/<name>/SUBAGENT.md\` (YAML frontmatter: name, description, mode; markdown body: system prompt), then immediately spawn it.`);
+- **Dynamic Creation**: Invent new subagents dynamically if needed! You MUST use the \`auto_\` prefix for temporary subagents. Use \`file_write\` to create \`.aclix/subagents/auto_<name>/SUBAGENT.md\` (YAML frontmatter: name, description, mode; markdown body: system prompt), then immediately spawn it.`);
   } else {
     const name = options.subagentMeta?.name ?? 'unknown';
     const mode = options.subagentMeta?.mode ?? 'read-only';
