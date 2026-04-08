@@ -51,11 +51,12 @@ export function createStandardToolRegistry(
   callbacks: AgentCallbacks,
   allowedTools?: string[],
   disallowedTools?: string[],
+  isReadOnly?: boolean,
 ): ToolRegistry {
   logCoreEvent('tools', 'createStandardToolRegistry', { cwd: ctx.cwd });
   const registry = new ToolRegistry();
   registry.register('agent', createAgentTool(ctx, callbacks));
-  registry.register('shell', createShellTool(runHostCommand, callbacks));
+  registry.register('shell', createShellTool(runHostCommand, callbacks, isReadOnly));
   registry.register('python', createPythonTool(callbacks));
   registry.register('ask_user', createAskUserTool(callbacks));
   registry.register('file_read', createFileReadTool(callbacks));
@@ -79,6 +80,12 @@ export function createStandardToolRegistry(
         registry.unregister(name);
       }
     }
+  }
+
+  if (isReadOnly) {
+    registry.unregister('file_write');
+    registry.unregister('file_edit');
+    registry.unregister('python');
   }
 
   logCoreEvent('tools', 'createStandardToolRegistry.done', {

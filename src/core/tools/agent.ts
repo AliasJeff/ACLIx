@@ -7,7 +7,8 @@ import type { AgentCallbacks } from '../../shared/types.js';
 import { SubagentManager } from '../subagents/manager.js';
 import { createAgentCallbacks } from '../../ui/callbacks.js';
 import { createStandardToolRegistry } from './registry.js';
-import { buildSystemPrompt } from '../agent/prompt.js';
+import { buildAgentSystemPrompt as _buildAgentSystemPrompt } from '../agent/prompt.js';
+import type { PromptBuilderOptions } from '../agent/prompt.js';
 import { LLMProvider } from '../../services/llm/provider.js';
 import { AclixError } from '../../shared/errors.js';
 import { appLogger } from '../../services/logger/index.js';
@@ -26,6 +27,18 @@ export function createAgentTool(ctx: RuntimeContext, _mainCallbacks: AgentCallba
       'Spawn a specialized background subagent to complete a focused task. Use this for delegation (exploration, planning, or execution) when a separate isolated agent is helpful.',
     inputSchema: agentInputSchema,
     execute: async ({ task, subagentName }: AgentToolInput, { abortSignal }): Promise<string> => {
+      if (_mainCallbacks.onBeforeExecute) {
+        const approved = await _mainCallbacks.onBeforeExecute(
+          'agent',
+          `agent ${subagentName}`,
+          `Delegating task to subagent ${subagentName}`,
+          'low',
+        );
+        if (!approved) {
+          return 'Execution rejected.';
+        }
+      }
+
       logToolEvent('agent', { subagentName: subagentName.trim(), taskLen: task.length });
       await SubagentManager.getInstance().scanSubagents(ctx.cwd);
 
@@ -68,27 +81,49 @@ export function createAgentTool(ctx: RuntimeContext, _mainCallbacks: AgentCallba
           subagentCallbacks,
           subagent.allowedTools,
           subagent.disallowedTools,
+          subagent.mode === 'read-only',
         );
 
         // Prevent infinite recursion: subagents cannot spawn subagents.
         subagentRegistry.unregister('agent');
 
-        const messages: CoreMessage[] = [{ role: 'user', content: task }];
-        const systemPrompt =
-          buildSystemPrompt({ cwd: ctx.cwd, os: ctx.platform, shell: ctx.shell }) +
-          '\n\n' +
-          subagent.systemPrompt;
+        const messages: CoreMessage[] = [
+          {
+            role: 'user',
+            content:
+              task +
+              '\n\nIMPORTANT: Execute the task using tools. Once completed, your final text output MUST contain a comprehensive summary.',
+          },
+        ];
+        const buildAgentSystemPrompt = _buildAgentSystemPrompt as unknown as (
+          runtimeCtx: RuntimeContext,
+          options?: PromptBuilderOptions,
+        ) => string;
 
-        const result = new LLMProvider().executeAgent(
-          messages,
-          systemPrompt,
-          subagentRegistry.getTools(),
-          abortSignal,
-          subagentCallbacks.onStepFinish,
-        );
+        const systemPrompt = buildAgentSystemPrompt(ctx, {
+          isSubagent: true,
+          subagentMeta: subagent,
+        });
 
-        const text = await Promise.resolve(result.text);
-        return text;
+        try {
+          const provider = new LLMProvider();
+          const result = provider.executeAgent(
+            messages,
+            systemPrompt,
+            subagentRegistry.getTools(),
+            abortSignal,
+            subagentCallbacks.onStepFinish,
+          );
+
+          const text = await Promise.resolve(result.text);
+          if (text.trim().length === 0) {
+            return 'Subagent completed but returned no text summary.';
+          }
+          return text;
+        } catch (error: unknown) {
+          appLogger.error({ scope: 'agent', tool: 'agent', error }, 'Subagent execution failed');
+          return `Subagent execution failed: ${error instanceof Error ? error.message : String(error)}`;
+        }
       } finally {
         releaseSlot();
       }

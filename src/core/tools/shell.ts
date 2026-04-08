@@ -19,6 +19,7 @@ const shellInputSchema = z.object({
 export function createShellTool(
   executeCommand: (cmd: string, signal?: AbortSignal) => Promise<string>,
   callbacks: AgentCallbacks,
+  isReadOnly?: boolean,
 ) {
   return tool({
     description:
@@ -31,6 +32,9 @@ export function createShellTool(
         reasoningLen: reasoning.length,
       });
       const risk: RiskLevel = mergeAgentAndServerRisk(agentRisk, command);
+      if (isReadOnly && (risk === 'medium' || risk === 'high')) {
+        return 'Execution blocked: Subagent is in read-only mode. Mutating shell commands are strictly forbidden.';
+      }
       const isApproved = callbacks.onBeforeExecute
         ? await callbacks.onBeforeExecute('shell', command, reasoning, risk)
         : false;

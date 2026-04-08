@@ -29,8 +29,9 @@ export function createAgentCallbacks(
   options?: { isSubagent?: boolean; agentName?: string },
 ): AgentCallbacks {
   const effectiveSignal = (): AbortSignal => signal ?? resolveCliAbortSignal();
+  const subagentName = options?.agentName ?? 'unknown';
   const subagentPrefix =
-    options?.isSubagent === true ? `[Subagent: ${options.agentName ?? 'unknown'}] ` : '';
+    options?.isSubagent === true ? `[Subagent: ${subagentName}] ` : '';
 
   return {
     onStepFinish: (event) => {
@@ -44,6 +45,7 @@ export function createAgentCallbacks(
           },
           'Subagent LLM step finished',
         );
+        spinner.start(`[Subagent: ${subagentName}] thinking...`);
         return;
       }
       appLogger.info(
@@ -67,6 +69,7 @@ export function createAgentCallbacks(
           { scope: 'agent', toolName, command, reasoning, risk, subagent: options.agentName },
           'Subagent silently approved low-risk tool execution',
         );
+        spinner.start(`[Subagent: ${subagentName}] is using tool: ${toolName}...`);
         return true;
       }
 

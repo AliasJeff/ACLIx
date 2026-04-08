@@ -46,7 +46,7 @@ function resolveBuiltinSubagentsDir(): string {
 export class SubagentManager {
   private static instance: SubagentManager | undefined;
 
-  private readonly byName = new Map<string, SubagentMetadata>();
+  private byName = new Map<string, SubagentMetadata>();
 
   private activeCount = 0;
   private writerActive = false;
@@ -93,7 +93,7 @@ export class SubagentManager {
 
   async scanSubagents(cwd: string): Promise<void> {
     logCoreEvent('subagents', 'SubagentManager.scanSubagents', { cwd });
-    this.byName.clear();
+    const newMap = new Map<string, SubagentMetadata>();
 
     const sources: { dir: string; scope: SubagentMetadata['scope'] }[] = [
       { dir: resolveBuiltinSubagentsDir(), scope: 'builtin' },
@@ -115,21 +115,26 @@ export class SubagentManager {
       });
 
       for (const filePath of files) {
-        await this.ingestMarkdownFile(filePath, scope);
+        const meta = await this.ingestMarkdownFile(filePath, scope);
+        if (meta) {
+          newMap.set(meta.name, meta);
+        }
       }
     }
+
+    this.byName = newMap;
   }
 
   private async ingestMarkdownFile(
     filePath: string,
     scope: SubagentMetadata['scope'],
-  ): Promise<void> {
+  ): Promise<SubagentMetadata | null> {
     let raw: string;
     try {
       raw = await readFile(filePath, 'utf8');
     } catch (error: unknown) {
       errorLogger.error({ filePath, error }, 'Failed to read or parse metadata');
-      return;
+      return null;
     }
 
     let parsed: ReturnType<typeof matter>;
@@ -137,7 +142,7 @@ export class SubagentManager {
       parsed = matter(raw);
     } catch (error: unknown) {
       errorLogger.error({ filePath, error }, 'Failed to read or parse metadata');
-      return;
+      return null;
     }
 
     const fm: Record<string, unknown> = parsed.data as unknown as Record<string, unknown>;
@@ -176,7 +181,7 @@ export class SubagentManager {
       subagentDir,
     };
 
-    this.byName.set(meta.name, meta);
+    return meta;
   }
 
   getAvailableSubagents(): SubagentMetadata[] {
