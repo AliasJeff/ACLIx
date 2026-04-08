@@ -6,7 +6,7 @@ import path from 'node:path';
 import fg from 'fast-glob';
 import matter from 'gray-matter';
 
-import { errorLogger } from '../../services/logger/index.js';
+import { errorLogger, logCoreEvent } from '../../services/logger/index.js';
 import { AclixError } from '../../shared/errors.js';
 import { findAclixPackageRoot } from '../../shared/utils.js';
 import type { SkillMetadata } from '../../shared/types.js';
@@ -44,11 +44,13 @@ export class SkillManager {
   private constructor() {}
 
   static getInstance(): SkillManager {
+    logCoreEvent('skills', 'SkillManager.getInstance');
     SkillManager.instance ??= new SkillManager();
     return SkillManager.instance;
   }
 
   async scanSkills(cwd: string): Promise<void> {
+    logCoreEvent('skills', 'SkillManager.scanSkills', { cwd });
     this.byName.clear();
 
     const sources: { dir: string; scope: SkillMetadata['scope'] }[] = [
@@ -116,10 +118,12 @@ export class SkillManager {
   }
 
   getAvailableSkills(): SkillMetadata[] {
+    logCoreEvent('skills', 'SkillManager.getAvailableSkills');
     return [...this.byName.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
 
   async getSkillContent(name: string): Promise<{ content: string; skillDir: string }> {
+    logCoreEvent('skills', 'SkillManager.getSkillContent', { name: name.trim() });
     const key = name.trim();
     const meta = this.byName.get(key);
     if (!meta) {

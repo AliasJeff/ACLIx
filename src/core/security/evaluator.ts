@@ -1,6 +1,16 @@
 import { parseCommandAst } from '../../services/parser/ast.js';
+import { logCoreEvent } from '../../services/logger/index.js';
 
 export type RiskLevel = 'low' | 'medium' | 'high';
+
+const COMMAND_PREFIX_LEN = 48;
+
+function shellCommandMeta(command: string): { commandLen: number; commandPrefix: string } {
+  return {
+    commandLen: command.length,
+    commandPrefix: command.slice(0, COMMAND_PREFIX_LEN),
+  };
+}
 
 const ORDER: Record<RiskLevel, number> = {
   low: 0,
@@ -17,6 +27,10 @@ export function maxRisk(a: RiskLevel, b: RiskLevel): RiskLevel {
  * if the model mislabels them. Does not downgrade the agent's assessment.
  */
 export function evaluateServerRiskFloor(command: string): RiskLevel {
+  logCoreEvent('security', 'evaluateServerRiskFloor', {
+    ...shellCommandMeta(command),
+    forkBombPattern: command.includes(':(){ :|:& };:'),
+  });
   // Fork bomb defense (keep existing logic)
   if (command.includes(':(){ :|:& };:')) return 'high';
 
@@ -44,21 +58,7 @@ export function evaluateServerRiskFloor(command: string): RiskLevel {
 
   const REDIRECT_OPS = new Set(['>', '>>', '1>', '2>', '&>']);
 
-  const highCommands = new Set([
-    'vi',
-    'vim',
-    'nano',
-    'cat',
-    'head',
-    'tail',
-    'less',
-    'find',
-    'grep',
-    'mkfs',
-    'dd',
-    'shutdown',
-    'reboot',
-  ]);
+  const highCommands = new Set(['vi', 'vim', 'nano', 'mkfs', 'dd', 'shutdown', 'reboot']);
 
   const mediumCommands = new Set(['rm', 'mv', 'chmod', 'chown', 'curl', 'wget', 'tee']);
 
@@ -175,5 +175,6 @@ export function evaluateServerRiskFloor(command: string): RiskLevel {
 }
 
 export function mergeAgentAndServerRisk(agent: RiskLevel, command: string): RiskLevel {
+  logCoreEvent('security', 'mergeAgentAndServerRisk', { agent, ...shellCommandMeta(command) });
   return maxRisk(agent, evaluateServerRiskFloor(command));
 }

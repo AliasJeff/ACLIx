@@ -1,7 +1,7 @@
 import type { ModelMessage as CoreMessage } from 'ai';
 import { z } from 'zod';
 
-import { appLogger } from '../../services/logger/index.js';
+import { appLogger, logCoreEvent } from '../../services/logger/index.js';
 import type { LLMProvider } from '../../services/llm/provider.js';
 import { countMessageTokens } from './tokenizer.js';
 
@@ -170,6 +170,10 @@ export class ContextCompressor {
     keepRecent: number,
     provider: LLMProvider,
   ): Promise<CoreMessage[]> {
+    logCoreEvent('memory', 'ContextCompressor.rollingCompress', {
+      messageCount: messages.length,
+      keepRecent,
+    });
     if (keepRecent < 0) {
       throw new Error('keepRecent must be non-negative');
     }
@@ -210,7 +214,7 @@ export class ContextCompressor {
           phase: 'rolling',
           totalMessagesBefore: total,
           totalMessagesAfter: combined.length,
-          keptRecent,
+          keepRecent,
           compressedCount: toCompress.length,
         },
         'ContextCompressor: rolling compression applied',
@@ -223,7 +227,7 @@ export class ContextCompressor {
           scope: 'context',
           phase: 'rolling_failed',
           totalMessagesBefore: total,
-          keptRecent,
+          keepRecent,
           compressedCount: toCompress.length,
           error: error instanceof Error ? error.message : String(error),
         },
@@ -240,6 +244,11 @@ export class ContextCompressor {
     targetTokens: number,
     provider: LLMProvider,
   ): Promise<CoreMessage[]> {
+    logCoreEvent('memory', 'ContextCompressor.compress', {
+      messageCount: messages.length,
+      maxTokens,
+      targetTokens,
+    });
     const tokensBefore = countMessageTokens(messages);
 
     if (messages.length === 0) {

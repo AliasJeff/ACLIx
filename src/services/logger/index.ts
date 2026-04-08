@@ -42,6 +42,22 @@ export const appLogger = createFileLogger('app', 'debug');
 
 export const errorLogger = createFileLogger('error', 'debug');
 
+export const eventLogger = createFileLogger('event', 'debug');
+
+export type CoreEventDomain = 'memory' | 'rules' | 'security' | 'skills' | 'subagents' | 'tools';
+
+export function logCoreEvent(
+  domain: CoreEventDomain,
+  action: string,
+  payload?: Record<string, unknown>,
+): void {
+  if (payload === undefined) {
+    eventLogger.info({ domain, action }, 'core event');
+  } else {
+    eventLogger.info({ ...payload, domain, action }, 'core event');
+  }
+}
+
 export const logger = errorLogger;
 
 export function createLogger(): Logger {

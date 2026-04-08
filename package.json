@@ -16,7 +16,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsup && copyfiles -u 1 \"src/builtin-skills/**/*\" \"src/builtin-rules/**/*\" dist/",
+    "build": "tsup && copyfiles -u 1 \"src/builtin-skills/**/*\" \"src/builtin-rules/**/*\" \"src/builtin-subagents/**/*\" dist/",
     "start": "node ./bin/acli.js",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

@@ -6,6 +6,7 @@ import { z } from 'zod';
 
 import { errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
+import { fileBasename, logToolEvent } from './toolEvent.js';
 
 const globInputSchema = z.object({
   pattern: z.string().min(1).describe('Glob pattern, e.g. src/**/*.ts'),
@@ -21,6 +22,11 @@ export function createGlobTool(defaultCwd: string, callbacks: AgentCallbacks) {
       'Find files by filename pattern. Ignores node_modules and .git automatically with result truncation.',
     inputSchema: globInputSchema,
     execute: async ({ pattern, path }) => {
+      logToolEvent('glob', {
+        patternLen: pattern.length,
+        patternPrefix: pattern.slice(0, 80),
+        pathBase: path ? fileBasename(path) : undefined,
+      });
       const command = `glob ${pattern}`;
       const reasoning = 'Find files by glob pattern.';
       const isApproved = callbacks.onBeforeExecute

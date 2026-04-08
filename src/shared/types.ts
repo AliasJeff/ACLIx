@@ -50,3 +50,17 @@ export interface RuleMetadata {
   ruleDir: string;
   scope: 'builtin' | 'user' | 'project';
 }
+
+export type SubagentMode = 'read-only' | 'read-write';
+
+export interface SubagentMetadata {
+  name: string;
+  description: string;
+  mode: SubagentMode;
+  systemPrompt: string;
+  allowedTools?: string[];
+  disallowedTools?: string[];
+  scope: 'builtin' | 'user' | 'project';
+  filePath: string;
+  subagentDir: string;
+}

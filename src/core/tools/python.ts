@@ -9,6 +9,7 @@ import { z } from 'zod';
 
 import { appLogger, errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
+import { fileBasename, logToolEvent } from './toolEvent.js';
 
 const COMMAND_TIMEOUT_MS = 60_000;
 const OUTPUT_LIMIT = 10_000;
@@ -132,6 +133,13 @@ export function createPythonTool(callbacks: AgentCallbacks) {
     execute: async ({ scriptPath, code, args }) => {
       const sp = scriptPath?.trim();
       const cd = code?.trim();
+      logToolEvent('python', {
+        hasScriptPath: Boolean(sp),
+        scriptBase: sp ? fileBasename(resolveUserScriptPath(sp)) : undefined,
+        hasInlineCode: Boolean(cd),
+        inlineCodeLen: cd?.length,
+        argsCount: args?.length ?? 0,
+      });
       if (!sp && !cd) {
         return 'Error: Provide either scriptPath or code (at least one is required).';
       }

@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import { errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
+import { fileBasename, logToolEvent } from './toolEvent.js';
 
 const fileEditInputSchema = z.object({
   filePath: z.string().describe('Absolute or relative file path to edit'),
@@ -38,9 +39,16 @@ export function createFileEditTool(callbacks: AgentCallbacks) {
       'Modify an existing file using exact string match replacement. Safer than rewriting whole files.',
     inputSchema: fileEditInputSchema,
     execute: async ({ filePath, oldString, newString, replaceAll }) => {
+      logToolEvent('file_edit', {
+        fileBase: fileBasename(filePath),
+        oldStringLen: oldString.length,
+        newStringLen: newString.length,
+        replaceAll,
+      });
       const command = `file_edit ${filePath}`;
       const reasoning = 'Edit existing file by exact oldString replacement.';
-      const risk = 'medium' as const;
+      const isAcliDir = /(?:^|[/\\])\.aclix?(?:[/\\]|$)/.test(filePath);
+      const risk = isAcliDir ? 'low' : 'medium';
       const isApproved = callbacks.onBeforeExecute
         ? await callbacks.onBeforeExecute('file_edit', command, reasoning, risk)
         : false;

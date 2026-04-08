@@ -6,7 +6,7 @@ import path from 'node:path';
 import fg from 'fast-glob';
 import matter from 'gray-matter';
 
-import { errorLogger } from '../../services/logger/index.js';
+import { errorLogger, logCoreEvent } from '../../services/logger/index.js';
 import { findAclixPackageRoot } from '../../shared/utils.js';
 import type { RuleMetadata } from '../../shared/types.js';
 
@@ -40,6 +40,7 @@ export class RuleManager {
   private constructor() {}
 
   static getInstance(): RuleManager {
+    logCoreEvent('rules', 'RuleManager.getInstance');
     RuleManager.instance ??= new RuleManager();
     return RuleManager.instance;
   }
@@ -51,6 +52,7 @@ export class RuleManager {
    * 3. `<packageRoot>/builtin-rules` — optional checkout beside package.json
    */
   resolveBuiltinRulesDir(): string {
+    logCoreEvent('rules', 'RuleManager.resolveBuiltinRulesDir');
     const nextToBundle = path.join(import.meta.dirname, 'builtin-rules');
     if (existsSync(nextToBundle)) {
       return nextToBundle;
@@ -63,6 +65,7 @@ export class RuleManager {
   }
 
   async scanRules(cwd: string): Promise<void> {
+    logCoreEvent('rules', 'RuleManager.scanRules', { cwd });
     this.byName.clear();
 
     const sources: { dir: string; scope: RuleMetadata['scope'] }[] = [
@@ -133,10 +136,12 @@ export class RuleManager {
   }
 
   getAvailableRules(): RuleMetadata[] {
+    logCoreEvent('rules', 'RuleManager.getAvailableRules');
     return [...this.byName.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
 
   getRulesPrompt(): string {
+    logCoreEvent('rules', 'RuleManager.getRulesPrompt');
     const rules = this.getAvailableRules();
     return rules
       .map(

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { mergeAgentAndServerRisk, type RiskLevel } from '../security/evaluator.js';
 import { errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
+import { logToolEvent, textMeta } from './toolEvent.js';
 
 const riskEnum = z.enum(['low', 'medium', 'high']);
 
@@ -18,13 +19,22 @@ const shellInputSchema = z.object({
 export function createShellTool(
   executeCommand: (cmd: string, signal?: AbortSignal) => Promise<string>,
   callbacks: AgentCallbacks,
+  isReadOnly?: boolean,
 ) {
   return tool({
     description:
       'Execute shell commands on the host operating system. For every call you must set risk from your own judgment (low / medium / high). Read-only and listing commands are low risk and should use risk=low. Destructive or privileged operations must use medium or high.',
     inputSchema: shellInputSchema,
     execute: async ({ command, reasoning, risk: agentRisk }, { abortSignal }) => {
+      logToolEvent('shell', {
+        command: textMeta(command),
+        agentRisk,
+        reasoningLen: reasoning.length,
+      });
       const risk: RiskLevel = mergeAgentAndServerRisk(agentRisk, command);
+      if (isReadOnly && (risk === 'medium' || risk === 'high')) {
+        return 'Execution blocked: Subagent is in read-only mode. Mutating shell commands are strictly forbidden.';
+      }
       const isApproved = callbacks.onBeforeExecute
         ? await callbacks.onBeforeExecute('shell', command, reasoning, risk)
         : false;
