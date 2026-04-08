@@ -135,12 +135,18 @@ export class ReplEngine {
           );
           let isFirstChunk = true;
           for await (const chunk of result.textStream) {
-            if (isFirstChunk && chunk.length > 0) {
-              spinner.stop();
-              process.stdout.write(pc.green('\n💬 '));
-              isFirstChunk = false;
+            if (chunk.length > 0) {
+              if (spinner.isSpinning) {
+                spinner.stop();
+                process.stdout.write(pc.green(isFirstChunk ? '\n💬 ' : '\n\n💬 '));
+                isFirstChunk = false;
+              } else if (isFirstChunk) {
+                spinner.stop();
+                process.stdout.write(pc.green('\n💬 '));
+                isFirstChunk = false;
+              }
+              process.stdout.write(pc.green(chunk));
             }
-            process.stdout.write(pc.green(chunk));
           }
           if (isFirstChunk) {
             spinner.stop();

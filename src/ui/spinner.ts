@@ -3,6 +3,10 @@ import ora, { type Ora } from 'ora';
 let spinnerInstance: Ora | undefined;
 
 export const spinner = {
+  get isSpinning(): boolean {
+    return !!spinnerInstance?.isSpinning;
+  },
+
   start(text: string): void {
     spinnerInstance?.stop();
     spinnerInstance = ora(text).start();

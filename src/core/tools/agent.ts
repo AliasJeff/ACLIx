@@ -15,7 +15,11 @@ import { appLogger } from '../../services/logger/index.js';
 import { logToolEvent } from './toolEvent.js';
 
 const agentInputSchema = z.object({
-  task: z.string().describe('Detailed instructions for the subagent to execute'),
+  task: z
+    .string()
+    .describe(
+      'Detailed instructions. CRITICAL: Subagents have NO shared memory. If this task depends on previous results, you MUST embed all necessary data/context (e.g. diffs, structures) directly into this string.',
+    ),
   subagentName: z.string().describe('Name of the subagent to spawn'),
 });
 
@@ -92,7 +96,7 @@ export function createAgentTool(ctx: RuntimeContext, _mainCallbacks: AgentCallba
             role: 'user',
             content:
               task +
-              '\n\nIMPORTANT: Execute the task using tools. Once completed, your final text output MUST contain a comprehensive summary.',
+              '\n\nIMPORTANT: Execute the task using tools. Once completed, your final text output MUST be a highly detailed data report or execution summary (including raw data, findings, or code snippets). Do NOT just say "task complete".',
           },
         ];
         const buildAgentSystemPrompt = _buildAgentSystemPrompt as unknown as (

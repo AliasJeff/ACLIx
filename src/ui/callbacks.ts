@@ -30,8 +30,7 @@ export function createAgentCallbacks(
 ): AgentCallbacks {
   const effectiveSignal = (): AbortSignal => signal ?? resolveCliAbortSignal();
   const subagentName = options?.agentName ?? 'unknown';
-  const subagentPrefix =
-    options?.isSubagent === true ? `[Subagent: ${subagentName}] ` : '';
+  const subagentPrefix = options?.isSubagent === true ? `[Subagent: ${subagentName}] ` : '';
 
   return {
     onStepFinish: (event) => {
@@ -57,6 +56,9 @@ export function createAgentCallbacks(
         },
         'Agent LLM step finished',
       );
+      if (event.toolCalls.length > 0) {
+        spinner.start('Analyzing tool results...');
+      }
     },
     onBeforeExecute: async (
       toolName: string,
