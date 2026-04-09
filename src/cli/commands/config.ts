@@ -42,7 +42,7 @@ export async function configAction(signal?: AbortSignal): Promise<void> {
   } else {
     for (const [key, rawValue] of entries) {
       const value =
-        key === 'apiKey' && typeof rawValue === 'string'
+        (key === 'apiKey' || key === 'tavilyApiKey') && typeof rawValue === 'string'
           ? maskApiKey(rawValue)
           : String(rawValue);
       console.info(`  ${pc.green(key)}: ${pc.white(value)}`);
