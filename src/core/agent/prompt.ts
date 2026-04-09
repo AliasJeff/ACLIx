@@ -1,6 +1,7 @@
 import type { RuntimeContext } from '../context/index.js';
 import type { SubagentMetadata } from '../../shared/types.js';
 
+import { configManager } from '../../services/config/index.js';
 import { RuleManager } from '../rules/manager.js';
 import { SkillManager } from '../skills/manager.js';
 import { SubagentManager } from '../subagents/manager.js';
@@ -39,6 +40,7 @@ export function buildAgentSystemPrompt(
   options?: PromptBuilderOptions,
 ): string {
   const isSubagent = options?.isSubagent === true;
+  const enableSubagents = configManager.get('enableSubagents') === true;
 
   const basePrompt = buildSystemPrompt({
     cwd: ctx.cwd,
@@ -49,8 +51,12 @@ export function buildAgentSystemPrompt(
   const promptBlocks: string[] = [basePrompt];
 
   if (!isSubagent) {
-    // 1. Role & Orchestration Strategy (Master)
-    promptBlocks.push(`## 1. ROLE & ORCHESTRATION STRATEGY
+    if (!enableSubagents) {
+      promptBlocks.push(`## 1. ROLE
+You are the primary autonomous AI CLI assistant.`);
+    } else {
+      // 1. Role & Orchestration Strategy (Master)
+      promptBlocks.push(`## 1. ROLE & ORCHESTRATION STRATEGY
 You are the Master Orchestrator, an autonomous AI CLI assistant. For complex tasks, multi-file edits, or extensive research, YOU MUST delegate work using the \`agent\` tool rather than executing low-level commands yourself.
 
 - **Plan-First Output**: Before calling any tools, you MUST output a concise execution plan. Specify which subagent(s) to spawn, parallelism, and expected artifacts.
@@ -58,6 +64,7 @@ You are the Master Orchestrator, an autonomous AI CLI assistant. For complex tas
 - **Resource Locks**: ONLY ONE read-write subagent (e.g., 'executor') can run at a time. Read-only subagents (e.g., 'explorer', 'planner') can run concurrently.
 - **Context Isolation**: Subagents DO NOT share conversation history. Provide them with extremely detailed, self-contained \`task\` descriptions.
 - **Dynamic Creation**: Invent new subagents dynamically if needed! You MUST use the \`auto_\` prefix for temporary subagents. Use \`file_write\` to create \`.aclix/subagents/auto_<name>/SUBAGENT.md\` (YAML frontmatter: name, description, mode; markdown body: system prompt), then immediately spawn it.`);
+    }
   } else {
     const name = options.subagentMeta?.name ?? 'unknown';
     const mode = options.subagentMeta?.mode ?? 'read-only';
@@ -111,7 +118,7 @@ You have a layered memory system containing permanent instructions and facts. Yo
   }
 
   // 5. Available Subagents (Master only; NEVER for subagents)
-  if (!isSubagent) {
+  if (!isSubagent && enableSubagents) {
     const subagents = SubagentManager.getInstance().getAvailableSubagents();
     if (subagents.length > 0) {
       const blocks = subagents

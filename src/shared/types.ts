@@ -18,6 +18,7 @@ export interface UserConfig {
   apiKey: string;
   model: string;
   tavilyApiKey?: string;
+  enableSubagents?: boolean;
   baseUrl?: string;
   organization?: string;
   temperature?: number;

@@ -1,5 +1,6 @@
 import type { Tool } from 'ai';
 
+import { configManager } from '../../services/config/index.js';
 import { logCoreEvent } from '../../services/logger/index.js';
 import type { RuntimeContext } from '../context/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
@@ -55,7 +56,9 @@ export function createStandardToolRegistry(
 ): ToolRegistry {
   logCoreEvent('tools', 'createStandardToolRegistry', { cwd: ctx.cwd });
   const registry = new ToolRegistry();
-  registry.register('agent', createAgentTool(ctx, callbacks));
+  if (configManager.get('enableSubagents') === true) {
+    registry.register('agent', createAgentTool(ctx, callbacks));
+  }
   registry.register('shell', createShellTool(runHostCommand, callbacks, isReadOnly));
   registry.register('python', createPythonTool(callbacks));
   registry.register('ask_user', createAskUserTool(callbacks));

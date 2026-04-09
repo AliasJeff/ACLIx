@@ -19,7 +19,13 @@ function maskApiKey(value: string): string {
   return `${value.slice(0, 4)}***${value.slice(-4)}`;
 }
 
-type ConfigSelection = 'Provider' | 'Model' | 'API Key' | 'Tavily API Key' | 'Exit';
+type ConfigSelection =
+  | 'Provider'
+  | 'Model'
+  | 'API Key'
+  | 'Tavily API Key'
+  | 'Enable Subagents'
+  | 'Exit';
 
 function isSupportedProvider(value: unknown): value is keyof typeof modelOptionsByProvider {
   return typeof value === 'string' && value in modelOptionsByProvider;
@@ -30,13 +36,15 @@ export async function configAction(signal?: AbortSignal): Promise<void> {
   const configPath = configManager.getConfigPath();
   const logPath = path.join(os.homedir(), '.aclix', 'logs');
   const config = configManager.getAll();
+  const enableSubagents = configManager.get('enableSubagents') === true;
 
   console.info(pc.bold('ACLIx Configuration'));
   console.info(`${pc.cyan('Config file:')} ${configPath}`);
   console.info(`${pc.cyan('Log directory:')} ${logPath}`);
   console.info(pc.cyan('Values:'));
+  console.info(`  ${pc.green('enableSubagents')}: ${pc.white(enableSubagents ? 'YES' : 'NO')}`);
 
-  const entries = Object.entries(config);
+  const entries = Object.entries(config).filter(([key]) => key !== 'enableSubagents');
   if (entries.length === 0) {
     console.info(`  ${pc.dim('(empty)')}`);
   } else {
@@ -57,6 +65,7 @@ export async function configAction(signal?: AbortSignal): Promise<void> {
         { value: 'Model', label: 'Model' },
         { value: 'API Key', label: 'API Key' },
         { value: 'Tavily API Key', label: 'Tavily API Key' },
+        { value: 'Enable Subagents', label: 'Enable Subagents' },
         { value: 'Exit', label: 'Exit' },
       ],
       signal,
@@ -94,6 +103,21 @@ export async function configAction(signal?: AbortSignal): Promise<void> {
       const apiKey = await askPassword('Enter your API Key', '*', signal);
       configManager.set('apiKey', apiKey);
       console.info(pc.green('Updated apiKey successfully.'));
+      continue;
+    }
+
+    if (selection === 'Enable Subagents') {
+      const nextValue = await askSelect<'YES' | 'NO'>(
+        'Enable subagents?',
+        [
+          { value: 'YES', label: 'YES' },
+          { value: 'NO', label: 'NO' },
+        ],
+        signal,
+      );
+      const enabled = nextValue === 'YES';
+      configManager.set('enableSubagents', enabled);
+      console.info(pc.green(`Updated enableSubagents successfully (${enabled ? 'YES' : 'NO'}).`));
       continue;
     }
 
