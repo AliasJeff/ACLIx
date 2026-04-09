@@ -11,6 +11,7 @@ import { buildAgentSystemPrompt as _buildAgentSystemPrompt } from '../agent/prom
 import type { PromptBuilderOptions } from '../agent/prompt.js';
 import { LLMProvider } from '../../services/llm/provider.js';
 import { AclixError } from '../../shared/errors.js';
+import { readLongTermMemory } from '../memory/ltm.js';
 import { appLogger } from '../../services/logger/index.js';
 import { spinner } from '../../ui/spinner.js';
 import { logToolEvent } from './toolEvent.js';
@@ -107,8 +108,10 @@ export function createAgentTool(ctx: RuntimeContext, _mainCallbacks: AgentCallba
           runtimeCtx: RuntimeContext,
           options?: PromptBuilderOptions,
         ) => string;
+        const subagentMemory = await readLongTermMemory(ctx.cwd, task);
+        const subCtx: RuntimeContext = { ...ctx, longTermMemory: subagentMemory };
 
-        const systemPrompt = buildAgentSystemPrompt(ctx, {
+        const systemPrompt = buildAgentSystemPrompt(subCtx, {
           isSubagent: true,
           subagentMeta: subagent,
         });

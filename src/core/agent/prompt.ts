@@ -106,13 +106,16 @@ To prevent context crashes and ensure safety, you must strictly follow these too
 - **MANDATORY**: If you use web_search, you MUST append a "Sources:" section at the end of your response with markdown links: \`- [Title](URL)\`.`);
 
   // 4. Long-Term Memory (Shared)
-  const { userLTM, projectLTM } = ctx.longTermMemory;
+  const { userLTM, projectLTM, isTruncated } = ctx.longTermMemory;
   if (userLTM !== null || projectLTM !== null) {
+    const truncationWarningBlock = isTruncated
+      ? '  <warning>CRITICAL SAFETY WARNING: The memory below has been TRUNCATED using local BM25 relevance search (showing only Top 3 fragments) because the original file is too large. If you need to UPDATE or EDIT the memory files (e.g., ACLI.md), you MUST use the `file_read` tool to read the FULL file content first! Do NOT use `file_edit` blindly based on these partial fragments!</warning>\n'
+      : '';
     promptBlocks.push(`## 4. LONG-TERM MEMORY
 You have a layered memory system containing permanent instructions and facts. You MUST prioritize and adhere to these memories.
 
 <long_term_memory>
-  <user_level_memory>${escapeXmlText(userLTM ?? '')}</user_level_memory>
+${truncationWarningBlock}  <user_level_memory>${escapeXmlText(userLTM ?? '')}</user_level_memory>
   <project_level_memory>${escapeXmlText(projectLTM ?? '')}</project_level_memory>
 </long_term_memory>`);
   }
