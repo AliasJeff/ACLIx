@@ -73,7 +73,7 @@ export function createWebSearchTool(callbacks: AgentCallbacks) {
           'Web search completed',
         );
 
-        return {
+        const payload = {
           query,
           answer: data.answer ?? '',
           results: results.map((result) => ({
@@ -82,10 +82,12 @@ export function createWebSearchTool(callbacks: AgentCallbacks) {
             snippet: result.content ?? '',
           })),
         };
+
+        return `<untrusted_data>\n${JSON.stringify(payload, null, 2)}\n</untrusted_data>`;
       } catch (error: unknown) {
         errorLogger.error({ tool: 'web_search', error }, 'Tool execution exception');
         const message = error instanceof Error ? error.message : String(error);
-        return `Web search failed: ${message}`;
+        return `<untrusted_data>\nWeb search failed: ${message}\n</untrusted_data>`;
       }
     },
   });

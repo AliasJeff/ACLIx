@@ -180,7 +180,7 @@ export function retrieveTopK(text: string, query: string, topK = 3): string {
   }
 
   const orderedByOriginalIndex = ranked.sort((a, b) => a.originalIndex - b.originalIndex);
-  const separator = '\n\n... [记忆已截断，仅保留与当前任务最高相关的片段] ...\n\n';
+  const separator = '\n\n... [Memory truncated: only the fragments most relevant to the current task are kept] ...\n\n';
 
   return orderedByOriginalIndex.map((item) => item.text).join(separator);
 }

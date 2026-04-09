@@ -49,7 +49,7 @@ export function createFileReadTool(callbacks: AgentCallbacks) {
         if (isTruncated) {
           withLineNumbers.push('... [Truncated, use offset and limit to read more] ...');
         }
-        return withLineNumbers.join('\n');
+        return `<untrusted_data>\n${withLineNumbers.join('\n')}\n</untrusted_data>`;
       } catch (error: unknown) {
         errorLogger.error({ tool: 'file_read', error }, 'Tool execution exception');
         if (
@@ -58,9 +58,9 @@ export function createFileReadTool(callbacks: AgentCallbacks) {
           'code' in error &&
           error.code === 'ENOENT'
         ) {
-          return 'File not found';
+          return `<untrusted_data>\nFile not found\n</untrusted_data>`;
         }
-        return String(error instanceof Error ? error.message : error);
+        return `<untrusted_data>\n${String(error instanceof Error ? error.message : error)}\n</untrusted_data>`;
       }
     },
   });

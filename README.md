@@ -77,7 +77,9 @@ The system architecture is highly modular, relying on a filesystem-based plugin 
 
 ### Security and HITL
 
-A built-in security evaluator parses shell commands into an **Abstract Syntax Tree (AST)** to assign risk levels (`low`, `medium`, `high`). It is designed to intercept destructive commands (e.g., `rm -rf /`, `sed -i`), privilege escalations, and fork bombs. This enforces a strict **Human-in-the-Loop (HITL)** architecture, ensuring a mandatory UI confirmation loop before the execution of any medium or high-risk operations.
+1. **Command Risk Evaluation:** All shell commands are parsed into an **Abstract Syntax Tree (AST)** and assigned a risk level (low, medium, high). Destructive operations (e.g., rm -rf /, sed -i), privilege escalations, and fork bombs are automatically flagged. Medium- and high-risk commands require explicit user confirmation before execution.
+2. **Automatic File Snapshots:** Before modifying any file, an invisible SQLite snapshot is created, enabling one-click rollback via /undo. This ensures recoverability and prevents accidental data loss.
+3. **Prompt Injection Protection and Data Sanitization:** All untrusted inputs are wrapped in `<untrusted_data>` to prevent prompt injection attacks. Sensitive information is automatically sanitized before processing or logging, preserving data privacy.
 
 ## Usage
 

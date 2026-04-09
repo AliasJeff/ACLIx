@@ -8,6 +8,7 @@ import { memoryCommand } from './commands/memory.js';
 import { onboardCommand } from './commands/onboard.js';
 import { rulesCommand } from './commands/rules.js';
 import { skillsCommand } from './commands/skills.js';
+import { undoCommand } from './commands/undo.js';
 import { versionCommand } from './commands/version.js';
 import { SlashCommandRegistry } from './registry.js';
 
@@ -24,6 +25,7 @@ export function createSlashRegistry(): SlashCommandRegistry {
   registry.register(skillsCommand);
   registry.register(rulesCommand);
   registry.register(onboardCommand);
+  registry.register(undoCommand);
   return registry;
 }
 

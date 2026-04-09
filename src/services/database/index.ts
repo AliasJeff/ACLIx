@@ -5,9 +5,13 @@ import { createRequire } from 'node:module';
 
 import type { ModelMessage as CoreMessage } from 'ai';
 
+import { maskSensitiveData } from '../../core/security/masking.js';
+import { errorLogger } from '../logger/index.js';
+
 interface SqliteStatement {
-  get: (cwd: string) => { messages: string } | undefined;
-  run: (cwd: string, messages?: string) => unknown;
+  // Keep this generic so new queries don't require widening types everywhere.
+  get: (...params: unknown[]) => unknown;
+  run: (...params: unknown[]) => unknown;
 }
 
 interface SqliteDatabase {
@@ -38,6 +42,18 @@ function getDb(): SqliteDatabase {
   db.exec(
     'CREATE TABLE IF NOT EXISTS sessions (cwd TEXT PRIMARY KEY, messages JSON, updated_at DATETIME)',
   );
+  db.exec(
+    [
+      'CREATE TABLE IF NOT EXISTS file_snapshots (',
+      'id INTEGER PRIMARY KEY AUTOINCREMENT,',
+      'cwd TEXT,',
+      'file_path TEXT,',
+      'content TEXT,',
+      'is_new INTEGER,',
+      'created_at DATETIME DEFAULT CURRENT_TIMESTAMP',
+      ')',
+    ].join(' '),
+  );
 
   return db;
 }
@@ -47,7 +63,7 @@ export function loadSession(cwd: string): CoreMessage[] {
     .prepare('SELECT messages FROM sessions WHERE cwd = ?')
     .get(cwd);
 
-  if (!row?.messages) {
+  if (!row || typeof row !== 'object' || !('messages' in row) || typeof row.messages !== 'string') {
     return [];
   }
 
@@ -60,7 +76,8 @@ export function loadSession(cwd: string): CoreMessage[] {
 }
 
 export function saveSession(cwd: string, messages: CoreMessage[]): void {
-  const payload = JSON.stringify(messages);
+  const payloadRaw = JSON.stringify(messages);
+  const payload = maskSensitiveData(payloadRaw);
   getDb()
     .prepare(
       "INSERT OR REPLACE INTO sessions (cwd, messages, updated_at) VALUES (?, ?, datetime('now'))",
@@ -70,4 +87,67 @@ export function saveSession(cwd: string, messages: CoreMessage[]): void {
 
 export function clearSession(cwd: string): void {
   getDb().prepare('DELETE FROM sessions WHERE cwd = ?').run(cwd);
+}
+
+export interface SnapshotRecord {
+  id: number;
+  cwd: string;
+  file_path: string;
+  content: string | null;
+  is_new: 0 | 1;
+  created_at: string;
+}
+
+export function saveSnapshot(cwd: string, filePath: string, content: string | null): void {
+  const isNew = content === null ? 1 : 0;
+
+  try {
+    getDb()
+      .prepare(
+        'INSERT INTO file_snapshots (cwd, file_path, content, is_new) VALUES (?, ?, ?, ?)',
+      )
+      .run(cwd, filePath, content, isNew);
+  } catch (error) {
+    errorLogger.error({ cwd, filePath, error }, 'Failed to save file snapshot');
+  }
+}
+
+export function popLatestSnapshot(cwd: string): SnapshotRecord | null {
+  const database = getDb();
+
+  try {
+    database.exec('BEGIN IMMEDIATE');
+
+    const row = database
+      .prepare(
+        'SELECT id, cwd, file_path, content, is_new, created_at FROM file_snapshots WHERE cwd = ? ORDER BY id DESC LIMIT 1',
+      )
+      .get(cwd);
+
+    if (!row || typeof row !== 'object') {
+      database.exec('COMMIT');
+      return null;
+    }
+
+    const record = row as SnapshotRecord;
+
+    database.prepare('DELETE FROM file_snapshots WHERE id = ?').run(record.id);
+    database.exec('COMMIT');
+
+    // Normalize is_new to 0/1 (SQLite may return any integer-like value).
+    return {
+      ...record,
+      is_new: record.is_new === 1 ? 1 : 0,
+      content: record.content ?? null,
+    };
+  } catch (error) {
+    try {
+      database.exec('ROLLBACK');
+    } catch (rollbackError) {
+      errorLogger.error({ cwd, error: rollbackError }, 'Failed to rollback snapshot pop');
+    }
+
+    errorLogger.error({ cwd, error }, 'Failed to pop latest file snapshot');
+    return null;
+  }
 }
