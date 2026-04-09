@@ -1,6 +1,6 @@
 {
   "name": "@aliasjeff/acli",
-  "version": "0.2.1",
+  "version": "1.0.1",
   "engines": {
     "node": ">=23.0.0"
   },
