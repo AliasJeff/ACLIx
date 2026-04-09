@@ -17,6 +17,7 @@ Provide a reliable, repeatable procedure for an agent to **inspect** and **updat
 
 - **LTM is already injected** into your **System Prompt** as `<long_term_memory>...</long_term_memory>`.
 - Treat `<long_term_memory>` as **permanent instructions and facts**. You **MUST prioritize and adhere** to it over ephemeral conversation text.
+- If LTM exceeds length thresholds, it is automatically chunked and ONLY the Top 3 BM25 retrieved fragments relevant to your current task are injected.
 
 ---
 

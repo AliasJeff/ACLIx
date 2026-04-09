@@ -65,7 +65,7 @@ ACLIx manages context through a multi-layered memory architecture:
 - **Long-Term Memory (LTM):** Persistent state maintained in Markdown files at the user level (`~/.aclix/ACLI.md`) and project level (`./ACLI.md`), dictating permanent facts, constraints, and preferences.
 - **Short-Term Memory (STM):** Session-based conversation history backed by a local SQLite database, allowing state restoration across REPL sessions.
 - **Compressed Memory (CM):** An automated rolling summarization system. When token limits or message counts exceed safety thresholds, the engine invokes the LLM to compress historical context into a dense summary, discarding older raw messages to save tokens.
-- **_(Under Development)_:** Transitioning from full LTM injection to a local BM25 retrieval-based approach. The system will selectively retrieve and inject only the top 3 most relevant memory fragments per query to further optimize token usage and context relevance.
+- **BM25 Retrieval:** Transitioning from full LTM injection to a local BM25 retrieval-based approach. The system will selectively retrieve and inject only the top 3 most relevant memory fragments per query to further optimize token usage and context relevance.
 
 ### Extensible Skills and Rules
 

@@ -9,10 +9,11 @@ export interface RuntimeContext {
   longTermMemory: {
     userLTM: string | null;
     projectLTM: string | null;
+    isTruncated?: boolean;
   };
 }
 
-export async function createRuntimeContext(): Promise<RuntimeContext> {
+export async function createRuntimeContext(query?: string): Promise<RuntimeContext> {
   const now = new Date();
   const currentDate = new Intl.DateTimeFormat('en-US', {
     month: 'long',
@@ -21,7 +22,7 @@ export async function createRuntimeContext(): Promise<RuntimeContext> {
 
   // TODO: add other user information
   const cwd = process.cwd();
-  const longTermMemory = await readLongTermMemory(cwd);
+  const longTermMemory = await readLongTermMemory(cwd, query);
   return {
     cwd,
     // TODO: get shell
