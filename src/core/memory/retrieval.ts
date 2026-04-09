@@ -3,11 +3,11 @@ const MULTI_LANG_SEGMENTER = new Intl.Segmenter(['en', 'zh'], { granularity: 'wo
 const BM25_K1 = 1.5;
 const BM25_B = 0.75;
 
-export type BM25Result = {
+export interface BM25Result {
   text: string;
   originalIndex: number;
   score: number;
-};
+}
 
 function tokenize(text: string): string[] {
   const tokens: string[] = [];
@@ -78,8 +78,8 @@ export class BM25 {
     }
 
     const scoredDocs: BM25Result[] = this.#docs.map((text, originalIndex) => {
-      const termFrequency = this.#termFrequencies[originalIndex];
-      const docLength = this.#docLengths[originalIndex];
+      const termFrequency = this.#termFrequencies[originalIndex] ?? new Map<string, number>();
+      const docLength = this.#docLengths[originalIndex] ?? 0;
       const lengthNormBase =
         this.#avgDocLength > 0 ? 1 - BM25_B + BM25_B * (docLength / this.#avgDocLength) : 1;
       let score = 0;
