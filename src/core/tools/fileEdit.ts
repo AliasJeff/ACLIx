@@ -12,7 +12,9 @@ const fileEditInputSchema = z.object({
   oldString: z
     .string()
     .min(1)
-    .describe('Exact old content to replace, including whitespaces and indentation'),
+    .describe(
+      'The exact block of code to replace. Leading/trailing whitespaces and indentation are ignored automatically. Just provide enough consecutive lines to uniquely identify the block.',
+    ),
   newString: z.string().describe('New content to replace oldString'),
   replaceAll: z
     .boolean()
@@ -21,22 +23,133 @@ const fileEditInputSchema = z.object({
     .describe('Replace all matches when true; otherwise require unique match'),
 });
 
-function countOccurrences(content: string, target: string): number {
-  let count = 0;
-  let startIndex = 0;
-  let foundIndex = content.indexOf(target, startIndex);
-  while (foundIndex !== -1) {
-    count += 1;
-    startIndex = foundIndex + target.length;
-    foundIndex = content.indexOf(target, startIndex);
+function fuzzyBlockReplace(
+  content: string,
+  oldStr: string,
+  newStr: string,
+  replaceAll: boolean,
+): { success: boolean; content?: string; error?: string } {
+  const newline = content.includes('\r\n') ? '\r\n' : '\n';
+
+  const contentLines = content.split(/\r?\n/);
+  const oldLinesRaw = oldStr.split(/\r?\n/);
+  const newLinesRaw = newStr.split(/\r?\n/);
+
+  // Filter leading/trailing pure empty lines from oldStr (whitespace-only lines).
+  let oldStart = 0;
+  while (oldStart < oldLinesRaw.length && (oldLinesRaw[oldStart] ?? '').trim() === '') {
+    oldStart += 1;
   }
-  return count;
+  let oldEnd = oldLinesRaw.length;
+  while (oldEnd > oldStart && (oldLinesRaw[oldEnd - 1] ?? '').trim() === '') {
+    oldEnd -= 1;
+  }
+  const oldLines = oldLinesRaw.slice(oldStart, oldEnd);
+
+  if (oldLines.length === 0) {
+    return {
+      success: false,
+      error: 'Error: oldString is empty after ignoring leading/trailing whitespace-only lines.',
+    };
+  }
+
+  const contentLen = contentLines.length;
+  const oldLen = oldLines.length;
+
+  const matches: number[] = [];
+
+  if (contentLen >= oldLen) {
+    for (let start = 0; start <= contentLen - oldLen; start += 1) {
+      let ok = true;
+      for (let j = 0; j < oldLen; j += 1) {
+        const cTrim = (contentLines[start + j] ?? '').trim();
+        const oTrim = (oldLines[j] ?? '').trim();
+        if (cTrim !== oTrim) {
+          ok = false;
+          break;
+        }
+      }
+      if (ok) {
+        matches.push(start);
+      }
+    }
+  }
+
+  if (matches.length > 1 && !replaceAll) {
+    return {
+      success: false,
+      error: 'Error: Found multiple matching blocks. Please provide more surrounding lines in oldString to make it unique.',
+    };
+  }
+
+  if (matches.length === 0) {
+    // Core self-correction: choose the most similar sliding window by number of matched trimmed lines.
+    let bestStart = 0;
+    let bestScore = -1;
+    const windows = contentLen - oldLen;
+
+    if (windows >= 0) {
+      for (let start = 0; start <= windows; start += 1) {
+        let score = 0;
+        for (let j = 0; j < oldLen; j += 1) {
+          const cTrim = (contentLines[start + j] ?? '').trim();
+          const oTrim = (oldLines[j] ?? '').trim();
+          if (cTrim === oTrim) {
+            score += 1;
+          }
+        }
+        if (score > bestScore) {
+          bestScore = score;
+          bestStart = start;
+        }
+      }
+    } else {
+      // If file is shorter than old block, fall back to showing the whole file.
+      bestStart = 0;
+      bestScore = 0;
+    }
+
+    const startLineNumber = bestStart + 1; // 1-based for user friendliness.
+    const displayEnd = windows >= 0 ? bestStart + oldLen : contentLen;
+    const bestBlockLines =
+      displayEnd > bestStart ? contentLines.slice(bestStart, Math.min(displayEnd, contentLen)) : [];
+    const bestBlock = bestBlockLines.join(newline);
+
+    return {
+      success: false,
+      error: `Error: oldString not found (ignoring whitespaces). Did you mean the block starting at line ${String(
+        startLineNumber,
+      )}?\n\n${bestBlock}`,
+    };
+  }
+
+  // Unique match (or replaceAll=true): replace from back to front to avoid index shifting.
+  const updatedLines = [...contentLines];
+
+  const sortedStarts = [...matches].sort((a, b) => b - a);
+  for (const start of sortedStarts) {
+    const firstLine = updatedLines[start] ?? '';
+    const baseIndentMatch = /^[ \t]*/.exec(firstLine);
+    const baseIndent = baseIndentMatch ? baseIndentMatch[0] : '';
+
+    const replacementLines = newLinesRaw.map((line) => {
+      if (line.trim() === '') {
+        return '';
+      }
+      // If LLM didn't provide indentation for this line, try compensating with Base Indent.
+      return /^[ \t]/.test(line) ? line : `${baseIndent}${line}`;
+    });
+
+    updatedLines.splice(start, oldLen, ...replacementLines);
+  }
+
+  return { success: true, content: updatedLines.join('\n') };
 }
 
 export function createFileEditTool(callbacks: AgentCallbacks) {
   return tool({
     description:
-      'Modify an existing file using exact string match replacement. Safer than rewriting whole files.',
+      'Modify an existing file using whitespace-agnostic line-block replacement. Safer than rewriting whole files.',
     inputSchema: fileEditInputSchema,
     execute: async ({ filePath, oldString, newString, replaceAll }) => {
       logToolEvent('file_edit', {
@@ -59,19 +172,11 @@ export function createFileEditTool(callbacks: AgentCallbacks) {
 
       try {
         const content = await readFile(filePath, 'utf8');
-        if (!content.includes(oldString)) {
-          return 'Error: oldString not found. Please ensure exact match including whitespaces and indentation. Use file_read to check the exact content.';
+        const result = fuzzyBlockReplace(content, oldString, newString, replaceAll);
+        if (!result.success) {
+          return result.error ?? 'Error: oldString not found.';
         }
-
-        const occurrences = countOccurrences(content, oldString);
-        if (occurrences > 1 && !replaceAll) {
-          return 'Error: oldString is not unique (found multiple matches). Please provide more surrounding context (include nearby lines) so the match is unique, or set replaceAll=true if intentional.';
-        }
-
-        const updatedContent = replaceAll
-          ? content.replaceAll(oldString, newString)
-          : content.replace(oldString, newString);
-        await writeFile(filePath, updatedContent, 'utf8');
+        await writeFile(filePath, result.content ?? content, 'utf8');
         return 'File edited successfully';
       } catch (error: unknown) {
         errorLogger.error({ tool: 'file_edit', error }, 'Tool execution exception');
