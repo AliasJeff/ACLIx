@@ -40,11 +40,12 @@ export class ReplEngine {
   async start(): Promise<void> {
     const callbacks = createAgentCallbacks();
     const logo = `
-    ___   ________    ____
-   /   | / ____/ /   /  _/_  __
-  / /| |/ /   / /    / / | |/_/
- / ___ / /___/ /____/ / _>  < 
-/_/  |_\\____/_____/___//_/|_|
+  ╭────────────╮     ___   ________    ____
+ │   >     []   │   /   | / ____/ /   /  _/_  __
+ │      ─       │  / /| |/ /   / /    / / | |/_/
+  ╰────────────╯  / ___ / /___/ /____/ / _>  < 
+    ╭──╮  ╭──╮   /_/  |_\\____/_____/___//_/|_|
+
 `;
 
     console.info(pc.cyan(pc.bold(logo)));
@@ -114,13 +115,15 @@ export class ReplEngine {
           if (sessionMessages.length > 40) {
             try {
               console.info(
-                pc.dim(
-                  '⚠️ Context message count exceeded (40), performing rolling compression...',
-                ),
+                pc.dim('⚠️ Context message count exceeded (40), performing rolling compression...'),
               );
               spinner.start('Compressing old context...');
               const provider = new LLMProvider();
-              const compressed = await ContextCompressor.rollingCompress(sessionMessages, 30, provider);
+              const compressed = await ContextCompressor.rollingCompress(
+                sessionMessages,
+                30,
+                provider,
+              );
               this.#session.setMessages(compressed);
             } catch (error) {
               errorLogger.error({ error }, 'Context compression failed');
