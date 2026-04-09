@@ -1,8 +1,10 @@
+import { existsSync } from 'node:fs';
 import { readFile, writeFile } from 'node:fs/promises';
 
 import { tool } from 'ai';
 import { z } from 'zod';
 
+import { saveSnapshot } from '../../services/database/index.js';
 import { errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
 import { fileBasename, logToolEvent } from './toolEvent.js';
@@ -171,11 +173,23 @@ export function createFileEditTool(callbacks: AgentCallbacks) {
       }
 
       try {
+        if (!existsSync(filePath)) {
+          return 'Error: File does not exist.';
+        }
+
         const content = await readFile(filePath, 'utf8');
         const result = fuzzyBlockReplace(content, oldString, newString, replaceAll);
         if (!result.success) {
           return result.error ?? 'Error: oldString not found.';
         }
+
+        // Snapshot should never block or crash the tool.
+        try {
+          saveSnapshot(process.cwd(), filePath, content);
+        } catch (error) {
+          errorLogger.error({ tool: 'file_edit', filePath, error }, 'Failed to save snapshot');
+        }
+
         await writeFile(filePath, result.content ?? content, 'utf8');
         return 'File edited successfully';
       } catch (error: unknown) {

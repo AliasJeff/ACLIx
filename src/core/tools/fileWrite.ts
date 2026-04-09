@@ -1,10 +1,11 @@
 import { existsSync } from 'node:fs';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 
 import { tool } from 'ai';
 import { z } from 'zod';
 
+import { saveSnapshot } from '../../services/database/index.js';
 import { errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
 import { SubagentManager } from '../subagents/manager.js';
@@ -35,6 +36,21 @@ export function createFileWriteTool(callbacks: AgentCallbacks) {
       }
 
       try {
+        // Snapshot should never block or crash the tool.
+        try {
+          const cwd = process.cwd();
+          const existed = existsSync(filePath);
+          if (existed) {
+            const previous = await readFile(filePath, 'utf8');
+            saveSnapshot(cwd, filePath, previous);
+          } else {
+            // New file: mark as new so undo can delete it.
+            saveSnapshot(cwd, filePath, null);
+          }
+        } catch (error) {
+          errorLogger.error({ tool: 'file_write', filePath, error }, 'Failed to save snapshot');
+        }
+
         const targetDir = dirname(filePath);
         const isNewDir = !existsSync(targetDir);
 
