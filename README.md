@@ -33,15 +33,19 @@ English | [简体中文](./README_zh.md)
 ## Features
 
 - **Question and Answering:** Processes user queries using local file context or real-time web search.
-- **Code Writing and Editing:** Reads, writes, and modifies local files. File edits utilize an exact string replacement mechanism rather than full file rewrites.
-- **Command Execution:** Runs shell commands and Python scripts directly on the host machine.
+- **Code Writing and Editing:** Reads, writes, and modifies local files. File edits utilize an exact string replacement mechanism safeguarded by **Optimistic Locking (Read-Before-Write)** to prevent hallucinated overwrites.
+- **Command Execution & Output Pagination:** Runs shell commands and Python scripts directly on the host machine. Long outputs are automatically truncated and cached, allowing the agent to read full logs on demand without context pollution.
+- **Complex Task Orchestration:** Decomposes complex tasks into a **Persistent Task Graph (DAG)**.
+- **Workspace Isolation:** Spawns subagents in isolated **Git Worktree sandboxes** to ensure safe, conflict-free parallel execution.
 - **Security Prompts:** Utilizes an AST-based evaluator to assess shell command risks. Pauses execution to request user confirmation before running operations that modify system state or pose a security risk.
 
 ## Core Design
 
 ### Agent Orchestration
 
-The system employs a Master Orchestrator pattern combined with the **Re-Act** methodology. For complex tasks, the main agent delegates sub-objectives to specialized, dynamically loaded **Subagents** (e.g., Planner, Explorer, Executor). Subagents operate in isolated contexts with defined read-only or read-write permissions, which prevents conflicting operations and manages token limits efficiently.
+The system employs a Master Orchestrator pattern combined with the **Re-Act** methodology. For complex tasks, the main agent maps out a **Persistent Task Graph (DAG)** backed by SQLite. It then delegates sub-objectives to specialized, dynamically loaded **Subagents** (e.g., Planner, Explorer, Executor).
+
+To prevent file conflicts and manage token limits efficiently, Subagents operate in physically isolated **Git Worktree Sandboxes**. This allows true parallel execution. Once subtasks are completed, the Master Orchestrator reviews and merges the worktree back into the main branch.
 
 ### Tools
 
@@ -49,14 +53,17 @@ Tools are native functions provided to the agent to interact with the environmen
 
 - `shell`: Executes operating system commands.
 - `python`: Runs Python scripts or inline code.
-- `file_read`: Reads file content with pagination limits.
-- `file_write`: Overwrites or creates new files.
-- `file_edit`: Modifies existing files using whitespace-agnostic exact string replacement.
+- `file_read`: Reads file content with pagination limits and returns a real-time `FileHash`.
+- `file_write`: Overwrites or creates new files (mandates a valid `expectedHash`).
+- `file_edit`: Modifies existing files using whitespace-agnostic exact string replacement (mandates a valid `expectedHash`).
 - `glob`: Locates files based on naming patterns, automatically ignoring heavy directories.
 - `grep`: Searches text within files.
 - `ask_user`: Requests user input for passwords or missing parameters.
 - `web_search`: Searches the web for current information using the Tavily API.
 - `read_skill`: Loads the instructions of a specific workflow or Standard Operating Procedure (SOP).
+- `read_tool_output`: Retrieves paginated full logs for truncated long tool outputs cached in the database.
+- `manage_task`: Manages the state of the persistent Task Graph (DAG) for long-term planning.
+- `merge_worktree`: Merges isolated Subagent Git worktrees back into the main branch.
 
 ### Hierarchical Memory System
 
@@ -78,8 +85,9 @@ The system architecture is highly modular, relying on a filesystem-based plugin 
 ### Security and HITL
 
 1. **Command Risk Evaluation:** All shell commands are parsed into an **Abstract Syntax Tree (AST)** and assigned a risk level (low, medium, high). Destructive operations (e.g., rm -rf /, sed -i), privilege escalations, and fork bombs are automatically flagged. Medium- and high-risk commands require explicit user confirmation before execution.
-2. **Automatic File Snapshots:** Before modifying any file, an invisible SQLite snapshot is created, enabling one-click rollback via /undo. This ensures recoverability and prevents accidental data loss.
-3. **Prompt Injection Protection and Data Sanitization:** All untrusted inputs are wrapped in `<untrusted_data>` to prevent prompt injection attacks. Sensitive information is automatically sanitized before processing or logging, preserving data privacy.
+2. **Optimistic Locking (CAS):** File modifications enforce a strict Compare-And-Swap mechanism. The agent must read a file to obtain its current `FileHash` before editing. This completely eliminates stale overwrites and hallucinated code modifications.
+3. **Automatic File Snapshots:** Before modifying any file, an invisible SQLite snapshot is created, enabling one-click rollback via `/undo`. This ensures recoverability and prevents accidental data loss.
+4. **Prompt Injection Protection and Data Sanitization:** All untrusted inputs are wrapped in `<untrusted_data>` to prevent prompt injection attacks. Sensitive information is automatically sanitized before processing or logging, preserving data privacy.
 
 ## Usage
 
@@ -148,9 +156,10 @@ ACLIx is structured into distinct layers to separate CLI interfacing, core agent
                               v
 +-----------------------------------------------------------+
 |                     Master Orchestrator                   |
+|                   (Persistent Task Graph)                 |
 +----------------------+----------------------+-------------+
 |     Subagents        |    Security Check    |   Memory    |
-| (Planner, Executor)  |    (AST Evaluator)   | (LTM, STM)  |
+| (Worktree Isolation) |   (AST / CAS Locks)  | (LTM, STM)  |
 +----------------------+----------------------+-------------+
                               |
      +------------------------+------------------------+
@@ -180,9 +189,9 @@ ACLIx is structured into distinct layers to separate CLI interfacing, core agent
 │   │   ├── context/     # Runtime context tracking
 │   │   ├── memory/      # Token counting and context compression
 │   │   ├── rules/       # Rule manager
-│   │   ├── security/    # Shell command risk evaluator
+│   │   ├── security/    # Shell command risk evaluator and CAS locks
 │   │   ├── skills/      # Skill manager
-│   │   ├── subagents/   # Subagent orchestration
+│   │   ├── subagents/   # Subagent orchestration and worktree isolation
 │   │   └── tools/       # Tool definitions
 │   ├── repl/            # Interactive session engine and slash command registry
 │   ├── services/        # Config, database, executor, llm provider, and logger interfaces
