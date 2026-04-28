@@ -6,26 +6,13 @@ import { z } from 'zod';
 
 import { errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
+import { formatToolOutput } from './outputProtocol.js';
 import { fileBasename, logToolEvent } from './toolEvent.js';
 
 const grepInputSchema = z.object({
   pattern: z.string().min(1).describe('Regex pattern for searching file content'),
   path: z.string().optional().describe('Base directory for search, defaults to current working directory'),
 });
-
-const MAX_LINES = 200;
-
-function truncateOutput(output: string): string {
-  const lines = output.split(/\r?\n/).filter((line) => line.length > 0);
-  if (lines.length === 0) {
-    return 'No matches found.';
-  }
-  const limited = lines.slice(0, MAX_LINES);
-  if (lines.length > MAX_LINES) {
-    limited.push('(Results truncated)');
-  }
-  return limited.join('\n');
-}
 
 export function createGrepTool(defaultCwd: string, callbacks: AgentCallbacks) {
   return tool({
@@ -55,7 +42,7 @@ export function createGrepTool(defaultCwd: string, callbacks: AgentCallbacks) {
           { cwd: basePath, reject: false },
         );
         if (rgResult.exitCode === 0) {
-          return truncateOutput(rgResult.stdout);
+          return formatToolOutput('grep', rgResult.stdout);
         }
         if (rgResult.exitCode === 1) {
           return 'No matches found.';
@@ -73,7 +60,7 @@ export function createGrepTool(defaultCwd: string, callbacks: AgentCallbacks) {
       if (grepResult.exitCode === 1) {
         return 'No matches found.';
       }
-      return truncateOutput(grepResult.stdout || grepResult.stderr);
+      return formatToolOutput('grep', grepResult.stdout || grepResult.stderr);
     },
   });
 }

@@ -1,5 +1,9 @@
 import type { ModelMessage as CoreMessage } from 'ai';
+import { existsSync } from 'node:fs';
+import { mkdir } from 'node:fs/promises';
+import path from 'node:path';
 import { tool } from 'ai';
+import { execa } from 'execa';
 import { z } from 'zod';
 
 import type { RuntimeContext } from '../context/index.js';
@@ -23,6 +27,10 @@ const agentInputSchema = z.object({
       'Detailed instructions. CRITICAL: Subagents have NO shared memory. If this task depends on previous results, you MUST embed all necessary data/context (e.g. diffs, structures) directly into this string.',
     ),
   subagentName: z.string().describe('Name of the subagent to spawn'),
+  isolationTaskId: z
+    .string()
+    .optional()
+    .describe('Task ID to create an isolated Git Worktree workspace for safe execution'),
 });
 
 type AgentToolInput = z.infer<typeof agentInputSchema>;
@@ -32,7 +40,7 @@ export function createAgentTool(ctx: RuntimeContext, _mainCallbacks: AgentCallba
     description:
       'Spawn a specialized background subagent to complete a focused task. Use this for delegation (exploration, planning, or execution) when a separate isolated agent is helpful.',
     inputSchema: agentInputSchema,
-    execute: async ({ task, subagentName }: AgentToolInput, { abortSignal }): Promise<string> => {
+    execute: async ({ task, subagentName, isolationTaskId }: AgentToolInput, { abortSignal }): Promise<string> => {
       if (_mainCallbacks.onBeforeExecute) {
         const approved = await _mainCallbacks.onBeforeExecute(
           'agent',
@@ -59,8 +67,34 @@ export function createAgentTool(ctx: RuntimeContext, _mainCallbacks: AgentCallba
       }
 
       let releaseSlot: (() => void) | undefined;
+      let subagentCwd = ctx.cwd;
+      let isolatedBranchName: string | null = null;
+      if (isolationTaskId) {
+        const gitPath = path.join(ctx.cwd, '.git');
+        if (existsSync(gitPath)) {
+          const worktreesRoot = path.join(ctx.cwd, '.aclix', 'worktrees');
+          const worktreeAbsolutePath = path.join(worktreesRoot, isolationTaskId);
+          const worktreeRelativePath = path.relative(ctx.cwd, worktreeAbsolutePath);
+          const branchName = `acli_task_${isolationTaskId}`;
+          try {
+            await mkdir(worktreesRoot, { recursive: true });
+            const addResult = await execa(
+              'git',
+              ['worktree', 'add', worktreeRelativePath, '-b', branchName],
+              { cwd: ctx.cwd, reject: false },
+            );
+            if (addResult.exitCode !== 0) {
+              return `Failed to create isolated worktree for task ${isolationTaskId}.\n${addResult.stdout || addResult.stderr}`;
+            }
+            subagentCwd = worktreeAbsolutePath;
+            isolatedBranchName = branchName;
+          } catch (error: unknown) {
+            return `Failed to create isolated worktree for task ${isolationTaskId}: ${error instanceof Error ? error.message : String(error)}`;
+          }
+        }
+      }
       try {
-        releaseSlot = SubagentManager.getInstance().acquireSlot(subagent.mode);
+        releaseSlot = SubagentManager.getInstance().acquireSlot(subagent.mode, subagentCwd);
       } catch (error: unknown) {
         if (error instanceof AclixError) {
           return error.message;
@@ -85,12 +119,14 @@ export function createAgentTool(ctx: RuntimeContext, _mainCallbacks: AgentCallba
           isSubagent: true,
           agentName: subagent.name,
         });
+        const subCtx: RuntimeContext = { ...ctx, cwd: subagentCwd };
         const subagentRegistry = createStandardToolRegistry(
-          ctx,
+          subCtx,
           subagentCallbacks,
           subagent.allowedTools,
           subagent.disallowedTools,
           subagent.mode === 'read-only',
+          true,
         );
 
         // Prevent infinite recursion: subagents cannot spawn subagents.
@@ -109,9 +145,9 @@ export function createAgentTool(ctx: RuntimeContext, _mainCallbacks: AgentCallba
           options?: PromptBuilderOptions,
         ) => string;
         const subagentMemory = await readLongTermMemory(ctx.cwd, task);
-        const subCtx: RuntimeContext = { ...ctx, longTermMemory: subagentMemory };
+        const subCtxWithMemory: RuntimeContext = { ...subCtx, longTermMemory: subagentMemory };
 
-        const systemPrompt = buildAgentSystemPrompt(subCtx, {
+        const systemPrompt = buildAgentSystemPrompt(subCtxWithMemory, {
           isSubagent: true,
           subagentMeta: subagent,
         });
@@ -134,6 +170,9 @@ export function createAgentTool(ctx: RuntimeContext, _mainCallbacks: AgentCallba
 
           if (text.trim().length === 0) {
             return 'Subagent completed but returned no text summary.';
+          }
+          if (isolatedBranchName) {
+            return `${text}\n\nChanges are isolated in worktree '${isolatedBranchName}'. Review and use merge_worktree tool to integrate.`;
           }
           return text;
         } catch (error: unknown) {

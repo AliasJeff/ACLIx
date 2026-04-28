@@ -13,6 +13,9 @@ import { createGlobTool } from './glob.js';
 import { createGrepTool } from './grep.js';
 import { createPythonTool } from './python.js';
 import { createReadSkillTool } from './readSkill.js';
+import { createReadToolOutputTool } from './readOutput.js';
+import { createManageTaskTool } from './manageTask.js';
+import { createMergeWorktreeTool } from './mergeWorktree.js';
 import { SkillManager } from '../skills/manager.js';
 import { createAgentTool } from './agent.js';
 import { createShellTool } from './shell.js';
@@ -53,6 +56,7 @@ export function createStandardToolRegistry(
   allowedTools?: string[],
   disallowedTools?: string[],
   isReadOnly?: boolean,
+  isSubagent?: boolean,
 ): ToolRegistry {
   logCoreEvent('tools', 'createStandardToolRegistry', { cwd: ctx.cwd });
   const registry = new ToolRegistry();
@@ -69,6 +73,11 @@ export function createStandardToolRegistry(
   registry.register('grep', createGrepTool(ctx.cwd, callbacks));
   registry.register('web_search', createWebSearchTool(callbacks));
   registry.register('read_skill', createReadSkillTool(SkillManager.getInstance(), callbacks));
+  registry.register('read_tool_output', createReadToolOutputTool(callbacks));
+  if (!isSubagent) {
+    registry.register('manage_task', createManageTaskTool(ctx.cwd, callbacks));
+    registry.register('merge_worktree', createMergeWorktreeTool(ctx.cwd, callbacks));
+  }
 
   if (Array.isArray(disallowedTools) && disallowedTools.length > 0) {
     for (const name of disallowedTools) {

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { mergeAgentAndServerRisk, type RiskLevel } from '../security/evaluator.js';
 import { errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
+import { formatToolOutput } from './outputProtocol.js';
 import { logToolEvent, textMeta } from './toolEvent.js';
 
 const riskEnum = z.enum(['low', 'medium', 'high']);
@@ -46,10 +47,11 @@ export function createShellTool(
         return 'Execution rejected by user. Please suggest an alternative or stop.';
       }
       try {
-        return await executeCommand(command, abortSignal);
+        const rawOutput = await executeCommand(command, abortSignal);
+        return formatToolOutput('shell', rawOutput);
       } catch (error: unknown) {
         errorLogger.error({ tool: 'shell', error }, 'Tool execution exception');
-        return String(error instanceof Error ? error.message : error);
+        return formatToolOutput('shell', String(error instanceof Error ? error.message : error));
       }
     },
   });
