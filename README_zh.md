@@ -7,14 +7,14 @@
 <img src="./assets/logo.jpg" alt="ACLIx" style="zoom:50%;" />
 
 <p align="center">
-    <a href="https://www.npmjs.com/package/@aliasjeff/acli">
-        <img src="https://img.shields.io/npm/v/@aliasjeff/acli.svg" alt="npm version">
+    <a href="[https://www.npmjs.com/package/@aliasjeff/acli](https://www.npmjs.com/package/@aliasjeff/acli)">
+        <img src="[https://img.shields.io/npm/v/@aliasjeff/acli.svg](https://img.shields.io/npm/v/@aliasjeff/acli.svg)" alt="npm version">
     </a>
-    <a href="https://nodejs.org">
-        <img src="https://img.shields.io/node/v/@aliasjeff/acli.svg" alt="Node.js Version">
+    <a href="[https://nodejs.org](https://nodejs.org)">
+        <img src="[https://img.shields.io/node/v/@aliasjeff/acli.svg](https://img.shields.io/node/v/@aliasjeff/acli.svg)" alt="Node.js Version">
     </a>
-    <a href="https://opensource.org/licenses/MIT">
-        <img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT">
+    <a href="[https://opensource.org/licenses/MIT](https://opensource.org/licenses/MIT)">
+        <img src="[https://img.shields.io/badge/License-MIT-blue.svg](https://img.shields.io/badge/License-MIT-blue.svg)" alt="License: MIT">
     </a>
 </p>
 
@@ -33,15 +33,19 @@
 ## 功能特性
 
 - **问答：** 使用本地文件上下文或实时网络搜索来处理用户查询。
-- **代码编写与编辑：** 读取、写入和修改本地文件。文件编辑采用精确的字符串替换机制，而不是完全重写文件。
-- **命令执行：** 直接在主机上运行 Shell 命令和 Python 脚本。
+- **代码编写与编辑：** 读取、写入和修改本地文件。文件编辑采用精确的字符串替换机制，并结合 **乐观锁 (Read-Before-Write)** 防护，彻底避免大模型幻觉导致的误覆盖。
+- **命令执行与按需分页读取：** 直接在主机上运行 Shell 命令和 Python 脚本。超长输出会被自动截断并缓存到本地，允许智能体按需分页读取完整日志，防止上下文污染。
+- **复杂任务编排：** 将复杂任务拆解为 **持久化任务图 (DAG)** 以避免遗忘。
+- **工作区隔离：** 在物理隔离的 **Git Worktree 沙箱** 中拉起子智能体，确保安全的、无冲突的并行执行。
 - **安全提示：** 利用基于 AST（抽象语法树）的评估器来评估 Shell 命令的风险。在运行修改系统状态或带来安全风险的操作之前，会暂停执行以请求用户确认。
 
 ## 核心设计
 
 ### 智能体编排
 
-系统采用主编排器（Master Orchestrator）模式结合 **Re-Act** 方法。对于复杂的任务，主智能体会将子目标委派给专门的、动态加载的**子智能体（Subagents）**（例如：计划者、探索者、执行者）。子智能体在具有明确的只读或读写权限的隔离上下文中运行，这防止了冲突操作并能有效地管理 Token 限制。
+系统采用主编排器（Master Orchestrator）模式结合 **Re-Act** 方法。对于复杂的任务，主智能体会构建一个基于 SQLite 的 **持久化任务图 (DAG)**，然后将子目标委派给专门的、动态加载的**子智能体（Subagents）**（例如：计划者、探索者、执行者）。
+
+为了防止文件冲突并有效管理 Token，子智能体在物理隔离的 **Git Worktree 沙箱** 中运行。这允许真正的并行执行。一旦子任务完成，主智能体会审查并安全地将沙箱分支合并回主干。
 
 ### 工具
 
@@ -49,14 +53,17 @@
 
 - `shell`: 执行操作系统命令。
 - `python`: 运行 Python 脚本或内联代码。
-- `file_read`: 读取具有分页限制的文件内容。
-- `file_write`: 覆盖或创建新文件。
-- `file_edit`: 使用忽略空格的精确字符串替换机制来修改现有文件。
+- `file_read`: 读取具有分页限制的文件内容，并实时返回 `FileHash` 哈希值。
+- `file_write`: 覆盖或创建新文件（强制要求校验 `expectedHash`）。
+- `file_edit`: 使用忽略空格的精确字符串替换机制来修改现有文件（强制要求校验 `expectedHash`）。
 - `glob`: 根据命名模式查找文件，自动忽略大型目录。
 - `grep`: 在文件内搜索文本。
 - `ask_user`: 请求用户输入密码或缺失的参数。
 - `web_search`: 使用 Tavily API 在网络上搜索最新信息。
 - `read_skill`: 加载特定工作流或标准操作程序 (SOP) 的指令。
+- `read_tool_output`: 按需分页读取被截断并缓存在数据库中的超长工具输出日志。
+- `manage_task`: 管理持久化任务图 (DAG) 的状态与流转。
+- `merge_worktree`: 将隔离的子智能体 Git 工作区安全合并回主分支。
 
 ### 分层记忆系统
 
@@ -78,8 +85,9 @@ ACLIx 通过多层记忆架构来管理上下文：
 ### 安全性与人机协同 (HITL)
 
 1. **命令风险评估：** 所有 Shell 命令都会被解析为 **抽象语法树（AST）** 并分配风险等级（低、中、高）。破坏性操作（如 rm -rf /、sed -i）、权限提升以及分叉炸弹会被自动标记。中高风险命令在执行前需用户明确确认。
-2. **自动文件快照：** 在修改任何文件之前，系统会创建一个隐形的 SQLite 快照，通过 /undo 可实现一键回滚。这保证了可恢复性，并防止意外的数据丢失。
-3. **提示词注入防护与数据脱敏：** 所有不可信输入都会被 `<untrusted_data>` 包裹，以防止提示词注入攻击。敏感信息在处理或记录前会被自动脱敏，从而保护数据隐私。
+2. **乐观锁机制 (CAS)：** 强制实行 Compare-And-Swap (CAS) 哈希比对。智能体在修改文件前必须先读取文件以获取最新 `FileHash`，彻底杜绝大模型基于过期记忆或幻觉盲目覆盖文件。
+3. **自动文件快照：** 在修改任何文件之前，系统会创建一个隐形的 SQLite 快照，通过 `/undo` 可实现一键回滚。这保证了可恢复性，并防止意外的数据丢失。
+4. **提示词注入防护与数据脱敏：** 所有不可信输入都会被 `<untrusted_data>` 包裹，以防止提示词注入攻击。敏感信息在处理或记录前会被自动脱敏，从而保护数据隐私。
 
 ## 使用方法
 
@@ -146,9 +154,10 @@ acli config
                               v
 +-----------------------------------------------------------+
 |                         主编排器                          |
+|                   (持久化任务图 DAG)                      |
 +----------------------+----------------------+-------------+
 |       子智能体       |       安全检查       |     记忆    |
-|   (计划者，执行者)   |     (AST 评估器)     |  (LTM, STM) |
+|  (Worktree 沙箱隔离) |  (AST与乐观锁拦截)   |  (LTM, STM) |
 +----------------------+----------------------+-------------+
                               |
      +------------------------+------------------------+
@@ -178,9 +187,9 @@ acli config
 │   │   ├── context/     # 运行时上下文追踪
 │   │   ├── memory/      # Token 计数和上下文压缩
 │   │   ├── rules/       # 规则管理器
-│   │   ├── security/    # Shell 命令风险评估器
+│   │   ├── security/    # Shell 命令风险评估器与乐观锁拦截
 │   │   ├── skills/      # 技能管理器
-│   │   ├── subagents/   # 子智能体编排
+│   │   ├── subagents/   # 子智能体编排与工作区隔离机制
 │   │   └── tools/       # 工具定义
 │   ├── repl/            # 交互式会话引擎和斜杠命令注册表
 │   ├── services/        # 配置、数据库、执行器、LLM 提供商和日志记录器接口
