@@ -16,6 +16,10 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+function toRecord(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+}
+
 /** Escape text nodes (<description>, <content>). */
 function escapeXmlTextNode(text: string): string {
   return text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
@@ -110,7 +114,7 @@ export class RuleManager {
       return;
     }
 
-    const fm: Record<string, unknown> = parsed.data as unknown as Record<string, unknown>;
+    const fm = toRecord(parsed.data);
     const nameRaw = fm.name;
     const descriptionRaw = fm.description;
 

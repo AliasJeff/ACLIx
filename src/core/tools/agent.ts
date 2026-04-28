@@ -11,8 +11,7 @@ import type { AgentCallbacks } from '../../shared/types.js';
 import { SubagentManager } from '../subagents/manager.js';
 import { createAgentCallbacks } from '../../ui/callbacks.js';
 import { createStandardToolRegistry } from './registry.js';
-import { buildAgentSystemPrompt as _buildAgentSystemPrompt } from '../agent/prompt.js';
-import type { PromptBuilderOptions } from '../agent/prompt.js';
+import { buildAgentSystemPrompt } from '../agent/prompt.js';
 import { LLMProvider } from '../../services/llm/provider.js';
 import { AclixError } from '../../shared/errors.js';
 import { readLongTermMemory } from '../memory/ltm.js';
@@ -140,10 +139,6 @@ export function createAgentTool(ctx: RuntimeContext, _mainCallbacks: AgentCallba
               '\n\nIMPORTANT: Execute the task using tools. Once completed, your final text output MUST be a highly detailed data report or execution summary (including raw data, findings, or code snippets). Do NOT just say "task complete".',
           },
         ];
-        const buildAgentSystemPrompt = _buildAgentSystemPrompt as unknown as (
-          runtimeCtx: RuntimeContext,
-          options?: PromptBuilderOptions,
-        ) => string;
         const subagentMemory = await readLongTermMemory(ctx.cwd, task);
         const subCtxWithMemory: RuntimeContext = { ...subCtx, longTermMemory: subagentMemory };
 

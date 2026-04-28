@@ -21,6 +21,10 @@ function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((v) => typeof v === 'string');
 }
 
+function toRecord(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+}
+
 function isSubagentMode(value: unknown): value is SubagentMode {
   return value === 'read-only' || value === 'read-write';
 }
@@ -146,7 +150,7 @@ export class SubagentManager {
       return null;
     }
 
-    const fm: Record<string, unknown> = parsed.data as unknown as Record<string, unknown>;
+    const fm = toRecord(parsed.data);
 
     const subagentDir = path.dirname(filePath);
     const folderName = path.basename(subagentDir);

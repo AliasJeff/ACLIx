@@ -34,9 +34,9 @@ export function evaluateServerRiskFloor(command: string): RiskLevel {
   // Fork bomb defense (keep existing logic)
   if (command.includes(':(){ :|:& };:')) return 'high';
 
-  let ast: unknown[];
+  let ast: ReturnType<typeof parseCommandAst>;
   try {
-    ast = parseCommandAst(command) as unknown[];
+    ast = parseCommandAst(command);
   } catch {
     // Malformed syntax defaults to high risk
     return 'high';

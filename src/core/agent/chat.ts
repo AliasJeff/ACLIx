@@ -2,8 +2,7 @@ import type { ModelMessage as CoreMessage } from 'ai';
 
 import { createRuntimeContext } from '../context/index.js';
 import type { RuntimeContext } from '../context/index.js';
-import { buildAgentSystemPrompt as _buildAgentSystemPrompt } from './prompt.js';
-import type { PromptBuilderOptions } from './prompt.js';
+import { buildAgentSystemPrompt } from './prompt.js';
 import { RuleManager } from '../rules/manager.js';
 import { SkillManager } from '../skills/manager.js';
 import { SubagentManager } from '../subagents/manager.js';
@@ -56,11 +55,6 @@ export async function executeChatWorkflow(
   if (enableSubagents) {
     await SubagentManager.getInstance().scanSubagents(ctx.cwd);
   }
-
-  const buildAgentSystemPrompt = _buildAgentSystemPrompt as unknown as (
-    runtimeCtx: RuntimeContext,
-    options?: PromptBuilderOptions,
-  ) => string;
 
   const systemPrompt = buildAgentSystemPrompt(ctx, { isSubagent: false });
 

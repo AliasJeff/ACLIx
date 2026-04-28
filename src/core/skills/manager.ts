@@ -35,6 +35,10 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+function toRecord(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+}
+
 export class SkillManager {
   private static instance: SkillManager | undefined;
 
@@ -95,7 +99,7 @@ export class SkillManager {
       return;
     }
 
-    const fm: Record<string, unknown> = parsed.data as unknown as Record<string, unknown>;
+    const fm = toRecord(parsed.data);
     const nameRaw = fm.name;
     const descriptionRaw = fm.description;
 
