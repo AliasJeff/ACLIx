@@ -50,7 +50,7 @@ export class SubagentManager {
   private dynamicSubagents = new Set<string>();
 
   private activeCount = 0;
-  private writerActive = false;
+  private activeCwdWriters = new Set<string>();
 
   // eslint-disable-next-line @typescript-eslint/no-empty-function -- singleton
   private constructor() {}
@@ -61,21 +61,21 @@ export class SubagentManager {
     return SubagentManager.instance;
   }
 
-  acquireSlot(mode: SubagentMode): () => void {
-    logCoreEvent('subagents', 'SubagentManager.acquireSlot', { mode });
-    if (this.activeCount >= 3) {
-      throw new AclixError('SUBAGENT_BUSY', 'Max 3 concurrent subagents reached. Please wait.');
+  acquireSlot(mode: SubagentMode, targetCwd: string): () => void {
+    logCoreEvent('subagents', 'SubagentManager.acquireSlot', { mode, targetCwd });
+    if (this.activeCount >= 6) {
+      throw new AclixError('SUBAGENT_BUSY', 'Max 6 concurrent subagents reached. Please wait.');
     }
-    if (mode === 'read-write' && this.writerActive) {
+    if (mode === 'read-write' && this.activeCwdWriters.has(targetCwd)) {
       throw new AclixError(
         'SUBAGENT_BUSY',
-        'A read-write subagent is already running. Please wait or spawn a read-only subagent.',
+        'A read-write subagent is already running on this workspace. Please wait or use a different isolated workspace.',
       );
     }
 
     this.activeCount += 1;
     if (mode === 'read-write') {
-      this.writerActive = true;
+      this.activeCwdWriters.add(targetCwd);
     }
 
     let released = false;
@@ -87,7 +87,7 @@ export class SubagentManager {
 
       this.activeCount = Math.max(0, this.activeCount - 1);
       if (mode === 'read-write') {
-        this.writerActive = false;
+        this.activeCwdWriters.delete(targetCwd);
       }
     };
   }

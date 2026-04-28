@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { saveSnapshot } from '../../services/database/index.js';
 import { errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
+import { fingerprint } from '../memory/index.js';
 import { fileBasename, logToolEvent } from './toolEvent.js';
 
 const fileEditInputSchema = z.object({
@@ -18,6 +19,11 @@ const fileEditInputSchema = z.object({
       'The exact block of code to replace. Leading/trailing whitespaces and indentation are ignored automatically. Just provide enough consecutive lines to uniquely identify the block.',
     ),
   newString: z.string().describe('New content to replace oldString'),
+  expectedHash: z
+    .string()
+    .describe(
+      "The exact FileHash obtained from your most recent file_read call. Use 'NEW_FILE' if creating a brand new file.",
+    ),
   replaceAll: z
     .boolean()
     .optional()
@@ -153,13 +159,25 @@ export function createFileEditTool(callbacks: AgentCallbacks) {
     description:
       'Modify an existing file using whitespace-agnostic line-block replacement. Safer than rewriting whole files.',
     inputSchema: fileEditInputSchema,
-    execute: async ({ filePath, oldString, newString, replaceAll }) => {
+    execute: async ({ filePath, oldString, newString, expectedHash, replaceAll }) => {
       logToolEvent('file_edit', {
         fileBase: fileBasename(filePath),
         oldStringLen: oldString.length,
         newStringLen: newString.length,
+        expectedHashLen: expectedHash.length,
         replaceAll,
       });
+      try {
+        const fileExists = existsSync(filePath);
+        const actualHash = fileExists ? fingerprint(await readFile(filePath, 'utf8')) : 'NEW_FILE';
+        if (expectedHash !== actualHash) {
+          return 'Execution blocked: Optimistic lock failed. The file has been modified externally or you provided a fake hash. You MUST use file_read to get the latest content and FileHash before editing.';
+        }
+      } catch (error: unknown) {
+        errorLogger.error({ tool: 'file_edit', filePath, error }, 'Failed to verify optimistic lock');
+        return String(error instanceof Error ? error.message : error);
+      }
+
       const command = `file_edit ${filePath}`;
       const reasoning = 'Edit existing file by exact oldString replacement.';
       const isAcliDir = /(?:^|[/\\])\.aclix?(?:[/\\]|$)/.test(filePath);

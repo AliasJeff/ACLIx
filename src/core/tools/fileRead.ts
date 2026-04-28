@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 import { errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
+import { fingerprint } from '../memory/index.js';
 import { fileBasename, logToolEvent } from './toolEvent.js';
 
 const fileReadInputSchema = z.object({
@@ -38,6 +39,7 @@ export function createFileReadTool(callbacks: AgentCallbacks) {
 
       try {
         const content = await readFile(filePath, 'utf8');
+        const fileHash = fingerprint(content);
         const lines = content.split(/\r?\n/);
         const startIndex = Math.max(0, offset - 1);
         const selectedLines = lines.slice(startIndex, startIndex + limit);
@@ -49,7 +51,7 @@ export function createFileReadTool(callbacks: AgentCallbacks) {
         if (isTruncated) {
           withLineNumbers.push('... [Truncated, use offset and limit to read more] ...');
         }
-        return `<untrusted_data>\n${withLineNumbers.join('\n')}\n</untrusted_data>`;
+        return `<untrusted_data>\n[FileHash: ${fileHash}]\n${withLineNumbers.join('\n')}\n</untrusted_data>`;
       } catch (error: unknown) {
         errorLogger.error({ tool: 'file_read', error }, 'Tool execution exception');
         if (

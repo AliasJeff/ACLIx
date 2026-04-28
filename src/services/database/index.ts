@@ -11,6 +11,7 @@ import { errorLogger } from '../logger/index.js';
 interface SqliteStatement {
   // Keep this generic so new queries don't require widening types everywhere.
   get: (...params: unknown[]) => unknown;
+  all: (...params: unknown[]) => unknown[];
   run: (...params: unknown[]) => unknown;
 }
 
@@ -53,6 +54,12 @@ function getDb(): SqliteDatabase {
       'created_at DATETIME DEFAULT CURRENT_TIMESTAMP',
       ')',
     ].join(' '),
+  );
+  db.exec(
+    'CREATE TABLE IF NOT EXISTS tool_outputs (id TEXT PRIMARY KEY, content TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)',
+  );
+  db.exec(
+    'CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, cwd TEXT, title TEXT, status TEXT, dependencies TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)',
   );
 
   return db;
@@ -149,5 +156,114 @@ export function popLatestSnapshot(cwd: string): SnapshotRecord | null {
 
     errorLogger.error({ cwd, error }, 'Failed to pop latest file snapshot');
     return null;
+  }
+}
+
+export function saveToolOutput(id: string, content: string): void {
+  try {
+    getDb()
+      .prepare(
+        "INSERT OR REPLACE INTO tool_outputs (id, content, created_at) VALUES (?, ?, datetime('now'))",
+      )
+      .run(id, content);
+  } catch (error) {
+    errorLogger.error({ id, error }, 'Failed to save tool output');
+  }
+}
+
+export function getToolOutput(id: string): string | null {
+  try {
+    const row = getDb().prepare('SELECT content FROM tool_outputs WHERE id = ?').get(id);
+    if (!row || typeof row !== 'object' || !('content' in row)) {
+      return null;
+    }
+    return typeof row.content === 'string' ? row.content : null;
+  } catch (error) {
+    errorLogger.error({ id, error }, 'Failed to load tool output');
+    return null;
+  }
+}
+
+export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'failed';
+
+export interface TaskRecord {
+  id: string;
+  cwd: string;
+  title: string;
+  status: TaskStatus;
+  dependencies: string[];
+  created_at: string;
+}
+
+function normalizeTaskStatus(value: unknown): TaskStatus {
+  if (value === 'in_progress' || value === 'completed' || value === 'failed') {
+    return value;
+  }
+  return 'pending';
+}
+
+function parseDependencies(raw: unknown): string[] {
+  if (typeof raw !== 'string') {
+    return [];
+  }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed.filter((item): item is string => typeof item === 'string');
+  } catch {
+    return [];
+  }
+}
+
+export function saveTask(
+  id: string,
+  cwd: string,
+  title: string,
+  status: TaskStatus,
+  dependencies: string[],
+): void {
+  try {
+    getDb()
+      .prepare(
+        "INSERT OR REPLACE INTO tasks (id, cwd, title, status, dependencies, created_at) VALUES (?, ?, ?, ?, ?, datetime('now'))",
+      )
+      .run(id, cwd, title, status, JSON.stringify(dependencies));
+  } catch (error) {
+    errorLogger.error({ id, cwd, error }, 'Failed to save task');
+  }
+}
+
+export function updateTaskStatus(id: string, status: TaskStatus): void {
+  try {
+    getDb().prepare('UPDATE tasks SET status = ? WHERE id = ?').run(status, id);
+  } catch (error) {
+    errorLogger.error({ id, error }, 'Failed to update task status');
+  }
+}
+
+export function getActiveTaskGraph(cwd: string): TaskRecord[] {
+  try {
+    const rows = getDb()
+      .prepare(
+        "SELECT id, cwd, title, status, dependencies, created_at FROM tasks WHERE cwd = ? AND status != 'completed' ORDER BY created_at ASC, id ASC",
+      )
+      .all(cwd);
+
+    return rows
+      .filter((row): row is Record<string, unknown> => typeof row === 'object' && row !== null)
+      .map((row) => ({
+        id: typeof row.id === 'string' ? row.id : '',
+        cwd: typeof row.cwd === 'string' ? row.cwd : cwd,
+        title: typeof row.title === 'string' ? row.title : '',
+        status: normalizeTaskStatus(row.status),
+        dependencies: parseDependencies(row.dependencies),
+        created_at: typeof row.created_at === 'string' ? row.created_at : '',
+      }))
+      .filter((row) => row.id.length > 0);
+  } catch (error) {
+    errorLogger.error({ cwd, error }, 'Failed to load active task graph');
+    return [];
   }
 }

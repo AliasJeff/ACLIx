@@ -9,11 +9,10 @@ import { z } from 'zod';
 
 import { appLogger, errorLogger } from '../../services/logger/index.js';
 import type { AgentCallbacks } from '../../shared/types.js';
+import { formatToolOutput } from './outputProtocol.js';
 import { fileBasename, logToolEvent } from './toolEvent.js';
 
 const COMMAND_TIMEOUT_MS = 60_000;
-const OUTPUT_LIMIT = 10_000;
-const OUTPUT_HEAD_TAIL = 5_000;
 
 const pythonInputSchema = z.object({
   scriptPath: z
@@ -23,15 +22,6 @@ const pythonInputSchema = z.object({
   code: z.string().optional().describe('Inline Python code to execute directly.'),
   args: z.array(z.string()).optional().describe('Command line arguments to pass to the script.'),
 });
-
-function truncateOutput(output: string): string {
-  if (output.length <= OUTPUT_LIMIT) {
-    return output;
-  }
-  const head = output.slice(0, OUTPUT_HEAD_TAIL);
-  const tail = output.slice(-OUTPUT_HEAD_TAIL);
-  return `${head}\n... [Output truncated due to length] ...\n${tail}`;
-}
 
 function formatStdoutStderr(stdout: string, stderr: string): string {
   if (stdout && stderr) {
@@ -68,7 +58,7 @@ function formatPythonResult(result: {
     const codeLabel = result.exitCode == null ? 'unknown' : String(result.exitCode);
     out = out ? `${out}\n(exit code ${codeLabel})` : `Process exited with code ${codeLabel}.`;
   }
-  return truncateOutput(out);
+  return out;
 }
 
 async function execPythonFile(
@@ -108,7 +98,7 @@ async function runPythonWithBinaryFallback(
   } catch (error: unknown) {
     if (!isSpawnENOENT(error)) {
       errorLogger.error({ tool: 'python', error }, 'Tool execution exception');
-      return truncateOutput(`Python execution error: ${error instanceof Error ? error.message : String(error)}`);
+      return `Python execution error: ${error instanceof Error ? error.message : String(error)}`;
     }
     try {
       const result = await execPythonFile('python', scriptPath, extraArgs);
@@ -118,9 +108,7 @@ async function runPythonWithBinaryFallback(
         return 'Neither python3 nor python was found on PATH.';
       }
       errorLogger.error({ tool: 'python', error: fallbackError }, 'Tool execution exception');
-      return truncateOutput(
-        `Python execution error: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
-      );
+      return `Python execution error: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`;
     }
   }
 }
@@ -167,7 +155,8 @@ export function createPythonTool(callbacks: AgentCallbacks) {
       );
 
       if (sp) {
-        return runPythonWithBinaryFallback(resolveUserScriptPath(sp), args);
+        const rawOutput = await runPythonWithBinaryFallback(resolveUserScriptPath(sp), args);
+        return formatToolOutput('python', rawOutput);
       }
 
       const inlineCode = cd;
@@ -179,7 +168,8 @@ export function createPythonTool(callbacks: AgentCallbacks) {
       const tmpPath = path.join(os.tmpdir(), tmpName);
       try {
         await writeFile(tmpPath, inlineCode, 'utf8');
-        return await runPythonWithBinaryFallback(tmpPath, args);
+        const rawOutput = await runPythonWithBinaryFallback(tmpPath, args);
+        return formatToolOutput('python', rawOutput);
       } finally {
         await unlink(tmpPath).catch(() => {
           /* ignore cleanup errors */
